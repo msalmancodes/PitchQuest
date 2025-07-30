@@ -1,0 +1,16 @@
+# AgentAcademy - PitchQuest Dependencies
+# Core LangGraph and LangChain packages
+langgraph>=0.2.0
+langchain>=0.3.0
+langchain-openai>=0.2.0
+langchain-core>=0.3.0
+
+# Additional helpful packages
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+typing-extensions>=4.0.0
+pyyaml>=6.0.0 
+
+# Development and testing
+pytest>=8.0.0
+black>=24.0.0
