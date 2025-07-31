@@ -100,11 +100,11 @@ investor:
       - If business model missing: "How do you plan to make money?"
 
     wrap_up: |
-      After sufficient discussion, provide brief feedback and wrap up the session:
-      - Acknowledge their strengths
-      - Point out areas that need development
-      - Encourage next steps
-      - Thank them for the pitch practice
+      After sufficient discussion, provide a brief investment decision with structured reasoning:
+      - State clearly: "I am convinced to invest" OR "I am not convinced to invest"
+      - Give exactly 3 bullet-pointed reasons for your decision
+      - Thank them for the pitch and indicate the session is complete
+      - Keep it professional and brief - detailed feedback will come from the evaluator
 
   # Task-specific prompts
   tasks:
@@ -137,26 +137,26 @@ investor:
       
       Response:
 
-    generate_evaluation: |
+    generate_final_decision: |
       {base_system_prompt}
       
-      FULL PITCH CONVERSATION: {full_conversation}
+      {persona_personality}
       
-      As an experienced VC, evaluate this student's pitch practice session:
+      PITCH CONVERSATION SUMMARY: {conversation_context}
       
-      EVALUATION CRITERIA:
-      - Problem articulation and market need
-      - Solution clarity and differentiation
-      - Target audience definition
-      - Competitive positioning
-      - Business model understanding
-      - Overall pitch effectiveness
+      As {persona_name}, provide your final investment decision after this pitch practice:
       
-      Provide constructive feedback in this format:
-      STRENGTHS: [What they did well]
-      AREAS FOR IMPROVEMENT: [Specific gaps to address]
-      NEXT STEPS: [Actionable recommendations]
-      OVERALL ASSESSMENT: [Brief summary]
+      FORMAT:
+      **INVESTMENT DECISION:** [I am/am not convinced to invest]
+      
+      **THREE KEY REASONS:**
+      • [Reason 1 - be specific]
+      • [Reason 2 - be specific] 
+      • [Reason 3 - be specific]
+      
+      **CLOSING:** Thank them professionally and indicate session complete.
+      
+      Keep it brief - detailed feedback will be provided separately.
 
 # Configuration for investor behavior
 config:

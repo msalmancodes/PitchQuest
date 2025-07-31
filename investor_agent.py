@@ -5,7 +5,7 @@ from config import OPENAI_API_KEY, MODEL_NAME
 from prompts.investor_prompt_loader import (
     get_investor_opening_prompt,
     get_investor_response_prompt, 
-    get_investor_evaluation_prompt,
+    get_investor_final_decision_prompt,
     get_investor_personas,
     recommend_investor_persona
 )
@@ -134,18 +134,18 @@ def investor_node(state: InvestorState) -> InvestorState:
         # Force evaluation at max exchanges or natural ending after minimum exchanges
         if exchange_count >= 8 or (exchange_count >= 3 and is_natural_ending):
             try:
-                # Generate comprehensive evaluation
-                full_conversation = "\n".join([
+                # Generate final decision
+                conversation_context = "\n".join([
                     f"{msg['role'].upper()}: {msg['content']}" 
-                    for msg in messages
+                    for msg in messages[-6:] # Last 3 exchanges for context for the final decision
                 ])
                 
-                evaluation_prompt = get_investor_evaluation_prompt(full_conversation)
-                response = llm.invoke(evaluation_prompt)
-                evaluation = response.content.strip()
+                decision_prompt = get_investor_final_decision_prompt(persona, conversation_context)
+                response = llm.invoke(decision_prompt)
+                decision = response.content.strip()
                 
                 # Add evaluation message
-                messages.append({"role": "assistant", "content": evaluation})
+                messages.append({"role": "assistant", "content": decision})
                 
                 return {
                     "student_info": student_info,

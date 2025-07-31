@@ -107,22 +107,26 @@ class InvestorPromptLoader:
             last_message=last_message
         )
     
-    def get_evaluation_prompt(self, full_conversation: str) -> str:
+    def get_final_decision_prompt(self, persona: str, conversation_context: str) -> str:
         """
-        Get pitch evaluation prompt for session wrap-up
+        Get final investment decision prompt for session wrap-up
         
         Args:
-            full_conversation: Complete conversation transcript
+            persona: Investor persona making the decision
+            conversation_context: Recent conversation summary
         
         Returns:
-            Prompt for generating comprehensive pitch evaluation
+            Prompt for generating structured investment decision
         """
         prompts = self.load_prompts()
+        persona_info = self.get_persona_info(persona)
         base_prompt = self.get_base_system_prompt()
         
-        return prompts["investor"]["tasks"]["generate_evaluation"].format(
+        return prompts["investor"]["tasks"]["generate_final_decision"].format(
             base_system_prompt=base_prompt,
-            full_conversation=full_conversation
+            persona_personality=persona_info["personality"],
+            persona_name=persona_info["name"],
+            conversation_context=conversation_context
         )
     
     def get_config(self) -> Dict[str, Any]:
@@ -227,9 +231,9 @@ def get_investor_response_prompt(persona: str, conversation_context: str,
     """Get investor response prompt"""
     return investor_prompt_loader.get_response_prompt(persona, conversation_context, last_message)
 
-def get_investor_evaluation_prompt(full_conversation: str) -> str:
-    """Get investor evaluation prompt"""
-    return investor_prompt_loader.get_evaluation_prompt(full_conversation)
+def get_investor_final_decision_prompt(persona: str, conversation_context: str) -> str:
+    """Get investor final decision prompt"""
+    return investor_prompt_loader.get_final_decision_prompt(persona, conversation_context)
 
 def get_investor_personas() -> Dict[str, Dict[str, str]]:
     """Get investor persona profiles"""
