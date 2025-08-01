@@ -196,7 +196,7 @@ class EvaluatorPromptLoader:
         
         return prompts["evaluator"]["tasks"]["analyze_full_conversation"].format(
             base_system_prompt=base_prompt,
-            full_conversation=conversation_transcript,
+            full_conversation=full_conversation,
             investor_decision=investor_decision,
             investor_reasons=", ".join(investor_reasons)
         )
@@ -265,6 +265,18 @@ class EvaluatorPromptLoader:
                 improvement_areas.append(criterion)
         return improvement_areas
 
+    def get_pitch_performance_scoring_prompt(self, full_conversation: str, investor_decision: str, investor_reasons: List[str]) -> str:
+        """Get prompt for scoring pitch performance"""
+        prompts = self.load_prompts()
+        base_prompt = prompts["evaluator"]["base_system_prompt"]
+        
+        return prompts["evaluator"]["tasks"]["score_pitch_performance"].format(
+            base_system_prompt=base_prompt,
+            full_conversation=conversation_transcript,
+            investor_decision=investor_decision,
+            investor_reasons=", ".join(investor_reasons)
+        )
+
 # 🌟 LEARNING POINT: Global Instance Pattern
 # Provides easy access while maintaining single instance for caching benefits
 evaluator_prompt_loader = EvaluatorPromptLoader()
@@ -291,6 +303,12 @@ def get_evaluator_resources_prompt(improvement_areas: List[str],
     """Get resource recommendation prompt"""
     return evaluator_prompt_loader.get_resource_recommendation_prompt(
         improvement_areas, student_context
+    )
+
+def get_pitch_performance_scoring_prompt(full_conversation: str, investor_decision: str, investor_reasons: List[str]) -> str:
+    """Get prompt for scoring pitch performance"""
+    return evaluator_prompt_loader.get_pitch_performance_scoring_prompt(
+        full_conversation, investor_decision, investor_reasons
     )
 
 def assess_student_level(conversation_length: int, investor_decision: str,

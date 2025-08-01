@@ -310,6 +310,34 @@ evaluator:
       • Key takeaway: [Main lesson they should focus on]
       • Action item: [How to apply this learning]
 
+      
+    score_pitch_performance: |
+      {base_system_prompt}
+      
+      CONVERSATION TO SCORE:
+      {full_conversation}
+      
+      INVESTOR DECISION: {investor_decision}
+      INVESTOR REASONS: {investor_reasons}
+      
+      Score this pitch on each criterion using EXACTLY this format:
+      
+      SCORING RUBRIC:
+      - excellent: Student clearly excels in this area
+      - good: Student shows competence with room for improvement  
+      - needs_work: Student needs significant improvement in this area
+      
+      REQUIRED OUTPUT FORMAT (copy exactly):
+      problem_articulation: [excellent/good/needs_work]
+      solution_clarity: [excellent/good/needs_work]
+      market_understanding: [excellent/good/needs_work]
+      competitive_advantage: [excellent/good/needs_work]
+      business_model: [excellent/good/needs_work]
+      communication_skills: [excellent/good/needs_work]
+      adaptability: [excellent/good/needs_work]
+    
+    Return ONLY the scoring format above. No additional text.
+
     create_action_plan: |
       {base_system_prompt}
       
@@ -343,6 +371,7 @@ config:
     feedback_document_sections: 6     # Number of main sections in feedback
     resource_recommendations: 3       # Number of learning resources to suggest
     action_plan_priorities: 3         # Number of priority areas in action plan
+    max_quote_length: "One or two sentences per example"
     
   quality_standards:
     quote_specific_examples: true     # Always include conversation quotes
