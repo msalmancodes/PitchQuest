@@ -336,7 +336,7 @@ evaluator:
       communication_skills: [excellent/good/needs_work]
       adaptability: [excellent/good/needs_work]
     
-    Return ONLY the scoring format above. No additional text.
+      Return ONLY the scoring format above. No additional text.
 
     create_action_plan: |
       {base_system_prompt}

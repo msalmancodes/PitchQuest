@@ -1,4 +1,4 @@
-  # import necessary libraries
+# import necessary libraries
 from langgraph.graph import StateGraph, END # creates workflows
 from typing import TypedDict, List, Dict, Any # for defining state structure 
 from langchain_openai import ChatOpenAI # for LLM
@@ -11,6 +11,7 @@ from prompts.mentor_prompt_loader import (
     get_assessment_prompt,
     get_feedback_and_transition_prompt
 )
+
 class MentorState(TypedDict):
     """State struct for the mentor agent and overall system"""
     student_info: Dict[str, Any] # student info: hobby, experience etc
@@ -23,6 +24,7 @@ def mentor_node(state: MentorState) -> MentorState:
     """
     INTELLIGENT Mentor Agent node - uses YAML prompts for natural conversation
     Keeps your original structure but adds LLM-powered intelligence
+    FIXED: Now preserves all state fields using **state pattern
     """
     # Your existing setup code - UNCHANGED
     messages = state.get("messages", [])
@@ -48,12 +50,16 @@ def mentor_node(state: MentorState) -> MentorState:
             mentor_response = "Hi! I'm your mentor, here to help you prepare for pitching. What's your hobby, and do you have any business ideas you'd like to work on?"
         
         messages.append({"role": "assistant", "content": mentor_response})
+        
+        # 🔧 FIX 1: Preserve all state fields
         return {
+            **state,  # ← PRESERVE all existing fields (investor_persona, pitch_complete, etc.)
             "student_info": student_info,
             "messages": messages,
             "question_count": 1,
             "exchange_count": 1,  # NEW: Initialize exchange count
-            "mentor_complete": False
+            "mentor_complete": False,
+            "student_ready_for_investor": False  # NEW: Initialize readiness
         }
 
     # CHANGE 2: Intelligent conversation logic instead of fixed questions
@@ -96,36 +102,42 @@ def mentor_node(state: MentorState) -> MentorState:
                 response = llm.invoke(feedback_prompt)
                 feedback_message = response.content.strip()
                 
-                # Check if they should proceed to investor
-                # More robust checking
-                should_proceed = (
+                # 🔧 CRITICAL FIX: Separate session completion from student readiness
+                student_ready = (
                     "proceed_to_investor: yes" in feedback_message.lower() or 
-                    "proceed to investor" in feedback_message.lower() and "yes" in feedback_message.lower()
+                    ("proceed to investor" in feedback_message.lower() and "yes" in feedback_message.lower())
                 )
                 
                 messages.append({"role": "assistant", "content": feedback_message})
                 
+                # 🔧 FIX 2: Always complete session after max exchanges, but set readiness separately
                 return {
+                    **state,  # ← PRESERVE all existing fields
                     "student_info": student_info,
                     "messages": messages,
                     "question_count": question_count + 1,
                     "exchange_count": exchange_count + 1,
-                    "mentor_complete": should_proceed
+                    "mentor_complete": True,  # ← ALWAYS complete after max exchanges
+                    "student_ready_for_investor": student_ready  # ← Separate readiness decision
                 }
             except:
-                # Fallback
-                final_message = "You've had a great conversation! Let's move you to practice with an investor."
+                # Fallback - assume student needs more work
+                final_message = "You've made good progress, but I think you need more practice before facing an investor. Keep working on your pitch!"
                 messages.append({"role": "assistant", "content": final_message})
+                
+                # 🔧 FIX 3: Complete session but mark student as not ready
                 return {
+                    **state,  # ← PRESERVE all existing fields
                     "student_info": student_info,
                     "messages": messages,
                     "question_count": question_count + 1,
                     "exchange_count": exchange_count + 1,
-                    "mentor_complete": True
+                    "mentor_complete": True,  # ← Session is complete
+                    "student_ready_for_investor": False  # ← But student isn't ready
                 }
 
         elif question_count >= 4:
-    # Always provide comprehensive feedback first
+            # Always provide comprehensive feedback first
             try:
                 conversation_context = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in messages[-8:]])
                 
@@ -134,20 +146,29 @@ def mentor_node(state: MentorState) -> MentorState:
                 response = llm.invoke(feedback_prompt)
                 feedback_message = response.content.strip()
                 
-                # Check if they should proceed to investor
-                should_proceed = (
+                # 🔧 ENHANCED: Check if student is ready AND if we should complete the session
+                student_ready = (
                     "proceed_to_investor: yes" in feedback_message.lower() or 
                     ("ready" in feedback_message.lower() and "investor" in feedback_message.lower())
                 )
                 
+                # Check if mentor should complete session (could be yes even if student isn't ready)
+                session_complete = (
+                    "session_complete: yes" in feedback_message.lower() or
+                    student_ready  # If student is ready, session is also complete
+                )
+                
                 messages.append({"role": "assistant", "content": feedback_message})
                 
+                # 🔧 FIX 4: Set both completion and readiness flags
                 return {
+                    **state,  # ← PRESERVE all existing fields
                     "student_info": student_info,
                     "messages": messages,
                     "question_count": question_count + 1,
                     "exchange_count": exchange_count + 1,
-                    "mentor_complete": should_proceed
+                    "mentor_complete": session_complete,
+                    "student_ready_for_investor": student_ready
                 }
             except:
                 pass  # Continue with regular response if assessment fails
@@ -177,22 +198,28 @@ def mentor_node(state: MentorState) -> MentorState:
 
         messages.append({"role": "assistant", "content": next_question})
 
+        # 🔧 FIX 5: Preserve all state fields
         return {
+            **state,  # ← PRESERVE all existing fields
             "student_info": student_info,
             "messages": messages,
             "question_count": question_count + 1,
             "exchange_count": exchange_count + 1,
-            "mentor_complete": False
+            "mentor_complete": False,
+            "student_ready_for_investor": False  # NEW: Not ready yet during regular conversation
         }
 
-    # Fallback return - should never reach here
+    # 🔧 FIX 6: Preserve all state fields (fallback return)
     return {
+        **state,  # ← PRESERVE all existing fields
         "student_info": student_info,
         "messages": messages,
         "question_count": question_count + 1,
         "exchange_count": exchange_count + 1,
-        "mentor_complete": True
+        "mentor_complete": True,
+        "student_ready_for_investor": True  # ← Fallback assumes ready (shouldn't normally reach here)
     }
+
 # 🚀 NEW: CONDITIONAL EDGE FUNCTION
 def should_continue(state: MentorState) -> str:
     """

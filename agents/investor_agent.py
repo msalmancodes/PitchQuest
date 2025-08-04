@@ -1,4 +1,4 @@
-# investor_agent.py - Clean Investor Agent Implementation
+# investor_agent.py - Clean Investor Agent Implementation with STATE PRESERVATION
 from typing import TypedDict, List, Dict, Any, Literal
 from langchain_openai import ChatOpenAI
 from config import OPENAI_API_KEY, MODEL_NAME
@@ -81,7 +81,7 @@ def select_investor_persona(student_info: Dict[str, Any], user_choice: str = "")
 def investor_node(state: InvestorState) -> InvestorState:
     """
     Investor Agent Node - Conducts realistic pitch sessions
-    Clean implementation using dedicated prompt loader
+    FIXED: Now preserves all SessionState fields using **state pattern
     """
     # Get current state
     messages = state.get("messages", [])
@@ -109,7 +109,9 @@ def investor_node(state: InvestorState) -> InvestorState:
         
         messages.append({"role": "assistant", "content": investor_response})
         
+        # 🔧 FIX 1: Preserve all SessionState fields
         return {
+            **state,  # ← PRESERVE all existing fields (mentor_complete, student_ready_for_investor, etc.)
             "student_info": student_info,
             "messages": messages,
             "investor_persona": persona,
@@ -147,7 +149,9 @@ def investor_node(state: InvestorState) -> InvestorState:
                 # Add evaluation message
                 messages.append({"role": "assistant", "content": decision})
                 
+                # 🔧 FIX 2: Preserve all SessionState fields
                 return {
+                    **state,  # ← PRESERVE all existing fields
                     "student_info": student_info,
                     "messages": messages,
                     "investor_persona": persona,
@@ -170,7 +174,9 @@ Great work on this practice session!"""
                 
                 messages.append({"role": "assistant", "content": fallback_eval})
                 
+                # 🔧 FIX 3: Preserve all SessionState fields
                 return {
+                    **state,  # ← PRESERVE all existing fields
                     "student_info": student_info,
                     "messages": messages,
                     "investor_persona": persona,
@@ -203,7 +209,9 @@ Great work on this practice session!"""
         
         messages.append({"role": "assistant", "content": investor_response})
         
+        # 🔧 FIX 4: Preserve all SessionState fields
         return {
+            **state,  # ← PRESERVE all existing fields
             "student_info": student_info,
             "messages": messages,
             "investor_persona": persona,
@@ -211,8 +219,9 @@ Great work on this practice session!"""
             "pitch_complete": False
         }
     
-    # Fallback return (should rarely reach here)
+    # 🔧 FIX 5: Preserve all SessionState fields (fallback return)
     return {
+        **state,  # ← PRESERVE all existing fields
         "student_info": student_info,
         "messages": messages,
         "investor_persona": persona,

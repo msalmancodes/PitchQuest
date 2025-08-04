@@ -132,12 +132,15 @@ class EvaluatorPromptLoader:
         # If too many resources, prioritize core principles and frameworks
         if len(filtered_resources) > max_resources:
             priority_order = ["core_pitch_principles", "pitch_frameworks", "expert_resources"]
-            filtered_resources = {
-                key: filtered_resources[key] 
+                # ✅ FIXED: Convert to list first, then slice, then back to dict
+            priority_items = [
+                (key, filtered_resources[key]) 
                 for key in priority_order 
                 if key in filtered_resources
-            }[:max_resources]
-        
+            ][:max_resources]  # Now we can slice the list
+            
+            filtered_resources = dict(priority_items)  # Convert back to dict
+                
         return filtered_resources
     
     # 🚀 LEARNING POINT: Composite Prompt Generation
@@ -196,7 +199,7 @@ class EvaluatorPromptLoader:
         
         return prompts["evaluator"]["tasks"]["analyze_full_conversation"].format(
             base_system_prompt=base_prompt,
-            full_conversation=full_conversation,
+            full_conversation=conversation_transcript,
             investor_decision=investor_decision,
             investor_reasons=", ".join(investor_reasons)
         )
@@ -272,7 +275,7 @@ class EvaluatorPromptLoader:
         
         return prompts["evaluator"]["tasks"]["score_pitch_performance"].format(
             base_system_prompt=base_prompt,
-            full_conversation=conversation_transcript,
+            full_conversation=full_conversation,
             investor_decision=investor_decision,
             investor_reasons=", ".join(investor_reasons)
         )
