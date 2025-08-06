@@ -307,63 +307,250 @@ def run_mentor_conversation():
     
     return current_state
 
-if __name__ == "__main__":
-    print("All imports successful")
-    llm = ChatOpenAI(
-        api_key = OPENAI_API_KEY,
-        model = MODEL_NAME,
-        temperature = 0.7
+
+# Add this to your mentor_agent.py file (keep everything else the same!)
+
+def process_single_mentor_message(current_state: MentorState, user_message: str) -> dict:
+    """
+    NEW FUNCTION: Process ONE message at a time for web interface
+    
+    Instead of running full conversation, this:
+    1. Takes current state + one user message
+    2. Updates state with user message
+    3. Gets ONE AI response
+    4. Returns updated state + response
+    
+    This is perfect for FastAPI request/response pattern!
+    """
+    
+    # Step 1: Add user message to state
+    messages = current_state.get("messages", [])
+    if user_message.strip():  # Only add non-empty messages
+        messages.append({"role": "user", "content": user_message.strip()})
+    
+    # Step 2: Update state with user message
+    updated_state = {
+        **current_state,
+        "messages": messages
+    }
+    
+    # Step 3: Process through your existing mentor_node logic
+    # (This is where your YAML prompts and LLM intelligence happens)
+    processed_state = mentor_node(updated_state)
+    
+    # Step 4: Extract the AI response (last assistant message)
+    ai_response = ""
+    if processed_state["messages"]:
+        for msg in reversed(processed_state["messages"]):
+            if msg["role"] == "assistant":
+                ai_response = msg["content"]
+                break
+    
+    # Step 5: Return structured response for web interface
+    return {
+        "ai_response": ai_response,
+        "updated_state": processed_state,
+        "mentor_complete": processed_state.get("mentor_complete", False),
+        "student_ready": processed_state.get("student_ready_for_investor", False),
+        "question_count": processed_state.get("question_count", 0),
+        "student_info": processed_state.get("student_info", {})
+    }
+
+
+def test_single_message_processing():
+    """
+    Test function to verify single message processing works
+    Run this to make sure everything works before FastAPI integration
+    """
+    print("🧪 Testing Single Message Processing...")
+    print("=" * 50)
+    
+    # Initialize state (just like your current system)
+    initial_state = {
+        "student_info": {},
+        "messages": [],
+        "question_count": 0,
+        "exchange_count": 0,
+        "mentor_complete": False
+    }
+    
+    print("📍 Test 1: First interaction (mentor should welcome)")
+    result1 = process_single_mentor_message(initial_state, "Hi there!")
+    print(f"🤖 AI Response: {result1['ai_response']}")
+    print(f"📊 Complete: {result1['mentor_complete']}")
+    print()
+    
+    print("📍 Test 2: Provide hobby info")
+    result2 = process_single_mentor_message(
+        result1['updated_state'], 
+        "My hobby is playing guitar and I want to start a music education app"
     )
-    print("LLM initialized")
-
-    # Test YAML prompts loading
-    try:
-        from prompts.mentor_prompt_loader import prompt_loader
-        config = prompt_loader.get_config()
-        print("✅ YAML prompts loaded successfully!")
-    except Exception as e:
-        print(f"❌ YAML prompt loading failed: {e}")
-        print("Check your mentor_prompts.yaml file for syntax errors")
-        exit(1)
-
-    # Test graph creation
-    print("\n🧪 Testing LangGraph Creation...")
-    mentor_graph = create_mentor_graph()
-    print("✅ LangGraph created successfully!")
+    print(f"🤖 AI Response: {result2['ai_response']}")
+    print(f"📊 Student Info Extracted: {result2['student_info']}")
+    print(f"📊 Question Count: {result2['question_count']}")
+    print()
     
-    # 🎯 VISUALIZE THE GRAPH STRUCTURE
-    print("\n📊 GRAPH VISUALIZATION:")
+    print("📍 Test 3: Continue conversation")
+    result3 = process_single_mentor_message(
+        result2['updated_state'],
+        "It would help guitar students learn music theory through interactive lessons"
+    )
+    print(f"🤖 AI Response: {result3['ai_response']}")
+    print()
+    
+    print("✅ Single message processing working!")
+    print("🎯 Ready for FastAPI integration!")
+
+
+# BONUS: Create a simple web-like conversation simulator
+def simulate_web_conversation():
+    """
+    Simulate how this will work with FastAPI
+    This shows the request/response pattern
+    """
+    print("🌐 Simulating Web Conversation...")
+    print("(This is how FastAPI will work)")
     print("=" * 50)
     
-    # ASCII visualization (works everywhere)
-    print("\n🔍 ASCII Structure:")
-    try:
-        print(mentor_graph.get_graph().draw_ascii())
-    except:
-        print("ASCII visualization not available")
+    # This simulates session storage (like a database)
+    session_storage = {}
     
-    # Mermaid diagram (for web/markdown)
-    print("\n🎨 Mermaid Diagram Code:")
-    try:
-        mermaid_code = mentor_graph.get_graph().draw_mermaid()
-        print(mermaid_code)
-        print("\n💡 Tip: Copy this code to https://mermaid.live to see visual diagram!")
-    except:
-        print("Mermaid visualization not available")
+    def web_chat_simulation(session_id: str, user_message: str):
+        """Simulate FastAPI endpoint behavior"""
+        
+        # Load session (like loading from database)
+        if session_id not in session_storage:
+            # Create new session
+            session_storage[session_id] = {
+                "student_info": {},
+                "messages": [],
+                "question_count": 0,
+                "exchange_count": 0,
+                "mentor_complete": False
+            }
+            print(f"🆕 Created new session: {session_id}")
+        
+        current_state = session_storage[session_id]
+        print(f"📂 Loaded session {session_id}")
+        
+        # Process message
+        result = process_single_mentor_message(current_state, user_message)
+        
+        # Save updated state (like saving to database)
+        session_storage[session_id] = result['updated_state']
+        print(f"💾 Saved session {session_id}")
+        
+        # Return response (like FastAPI JSON response)
+        return {
+            "response": result['ai_response'],
+            "session_id": session_id,
+            "mentor_complete": result['mentor_complete'],
+            "student_ready": result['student_ready']
+        }
     
-    # Graph info
-    print(f"\n📈 Graph Info:")
-    graph_info = mentor_graph.get_graph()
-    print(f"Nodes: {list(graph_info.nodes.keys())}")
-    print(f"Edges: {len(graph_info.edges)} connections")
+    # Simulate multiple requests (like different HTTP requests)
+    session_id = "demo_session_123"
     
-    print("=" * 50)
+    print("\n📨 Request 1:")
+    response1 = web_chat_simulation(session_id, "Hello, I need help with my pitch")
+    print(f"📤 Response: {response1['response']}")
     
-    # Ask user what they want to do
-    choice = input("\n🚀 What would you like to do?\n1. Run interactive conversation\n2. Just test the structure\nChoice (1 or 2): ")
+    print("\n📨 Request 2:")
+    response2 = web_chat_simulation(session_id, "I love playing guitar and want to create a music learning app")
+    print(f"📤 Response: {response2['response']}")
+    
+    print("\n📨 Request 3:")
+    response3 = web_chat_simulation(session_id, "It would help beginners learn music theory interactively")
+    print(f"📤 Response: {response3['response']}")
+    
+    print(f"\n📊 Session Status:")
+    print(f"   • Mentor Complete: {response3['mentor_complete']}")
+    print(f"   • Student Ready: {response3['student_ready']}")
+    print(f"   • Session Storage: {len(session_storage)} sessions")
+    
+    print("\n🎯 This is exactly how FastAPI will work!")
+    print("Each HTTP request processes one message and returns a response.")
+
+
+if __name__ == "__main__":
+    # Add new test options to your existing main block
+    print("\n🚀 NEW: Single Message Processing Available!")
+    
+    choice = input("""
+🚀 What would you like to do?
+1. Run original interactive conversation
+2. Test single message processing  
+3. Simulate web conversation
+4. Just test the structure
+Choice (1-4): """)
     
     if choice == "1":
         print("\n🚀 Starting Interactive Conversation...")
         final_state = run_mentor_conversation()
+    elif choice == "2":
+        test_single_message_processing()
+    elif choice == "3":
+        simulate_web_conversation()
     else:
         print("\n✅ Structure testing complete!")
+
+# if __name__ == "__main__":
+#     print("All imports successful")
+#     llm = ChatOpenAI(
+#         api_key = OPENAI_API_KEY,
+#         model = MODEL_NAME,
+#         temperature = 0.7
+#     )
+#     print("LLM initialized")
+
+#     # Test YAML prompts loading
+#     try:
+#         from prompts.mentor_prompt_loader import prompt_loader
+#         config = prompt_loader.get_config()
+#         print("✅ YAML prompts loaded successfully!")
+#     except Exception as e:
+#         print(f"❌ YAML prompt loading failed: {e}")
+#         print("Check your mentor_prompts.yaml file for syntax errors")
+#         exit(1)
+
+#     # Test graph creation
+#     print("\n🧪 Testing LangGraph Creation...")
+#     mentor_graph = create_mentor_graph()
+#     print("✅ LangGraph created successfully!")
+    
+#     # 🎯 VISUALIZE THE GRAPH STRUCTURE
+#     print("\n📊 GRAPH VISUALIZATION:")
+#     print("=" * 50)
+    
+#     # ASCII visualization (works everywhere)
+#     print("\n🔍 ASCII Structure:")
+#     try:
+#         print(mentor_graph.get_graph().draw_ascii())
+#     except:
+#         print("ASCII visualization not available")
+    
+#     # Mermaid diagram (for web/markdown)
+#     print("\n🎨 Mermaid Diagram Code:")
+#     try:
+#         mermaid_code = mentor_graph.get_graph().draw_mermaid()
+#         print(mermaid_code)
+#         print("\n💡 Tip: Copy this code to https://mermaid.live to see visual diagram!")
+#     except:
+#         print("Mermaid visualization not available")
+    
+#     # Graph info
+#     print(f"\n📈 Graph Info:")
+#     graph_info = mentor_graph.get_graph()
+#     print(f"Nodes: {list(graph_info.nodes.keys())}")
+#     print(f"Edges: {len(graph_info.edges)} connections")
+    
+#     print("=" * 50)
+    
+#     # Ask user what they want to do
+#     choice = input("\n🚀 What would you like to do?\n1. Run interactive conversation\n2. Just test the structure\nChoice (1 or 2): ")
+    
+#     if choice == "1":
+#         print("\n🚀 Starting Interactive Conversation...")
+#         final_state = run_mentor_conversation()
+#     else:
+#         print("\n✅ Structure testing complete!")
