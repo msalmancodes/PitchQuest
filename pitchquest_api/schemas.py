@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 # Session Schemas
@@ -57,3 +57,60 @@ class AgentResponse(BaseModel):
     session_updated: bool = False
     next_phase: Optional[str] = None
     conversation_complete: bool = False
+
+# =============================================================================
+# MENTOR-SPECIFIC SCHEMAS
+# =============================================================================
+
+class MentorMessageRequest(BaseModel):
+    """
+    Schema for mentor conversation requests
+    
+    PURPOSE: Handles mentor-specific conversation input with session tracking
+    """
+    session_id: Optional[str] = None  # Auto-generated if not provided
+    content: str = Field(..., min_length=1, max_length=1000)
+    agent_type: str = Field(default="mentor", pattern="^mentor$")  # Always "mentor" for this endpoint
+
+class MentorMessageResponse(BaseModel):
+    """
+    Schema for mentor conversation responses
+    
+    PURPOSE: Structured response from mentor agent with session status
+    """
+    success: bool
+    ai_response: str
+    session_id: str
+    mentor_complete: bool
+    student_ready_for_investor: bool
+    question_count: int
+    student_info: Dict[str, Any]
+    next_phase: str
+    error: Optional[str] = None
+
+class MentorStatusResponse(BaseModel):
+    """
+    Schema for mentor session status responses
+    
+    PURPOSE: Get current mentor session state without processing a message
+    """
+    success: bool
+    session_exists: bool
+    session_id: str
+    message_count: int
+    question_count: int
+    mentor_complete: bool
+    student_ready_for_investor: bool
+    student_info: Dict[str, Any]
+    current_phase: str
+
+class MentorSessionCreate(BaseModel):
+    """
+    Schema for creating new mentor sessions
+    
+    PURPOSE: Optional pre-creation of sessions with initial student data
+    """
+    student_name: Optional[str] = None
+    student_hobby: Optional[str] = None
+    student_age: Optional[int] = None
+    student_location: Optional[str] = None

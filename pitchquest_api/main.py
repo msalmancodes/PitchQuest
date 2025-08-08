@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import health, sessions  # Note: sessions (not session)
+from .routers import health, sessions, mentor  # ← ADDED: mentor import
 
 app = FastAPI(
     title="PitchQuest API",
@@ -20,7 +20,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
-app.include_router(sessions.router)  # Note: sessions.router
+app.include_router(sessions.router)
+app.include_router(mentor.router, prefix="/api/mentor", tags=["mentor"])  # ← ADDED: mentor router
 
 @app.get("/")
 async def root():
