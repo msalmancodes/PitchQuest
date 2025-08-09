@@ -14,9 +14,14 @@ Request → Load State → Process Message → Save State → Response
 
 import sys
 import os
+import re
+import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session as DatabaseSession
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Add the project root to Python path so we can import our agents
 project_root = Path(__file__).parent.parent.parent
@@ -27,6 +32,38 @@ from agents.mentor_agent import process_single_mentor_message, MentorState
 
 # Import database models and CRUD operations
 from pitchquest_api import models, crud
+
+
+def parse_ready_flag(text: str) -> Optional[bool]:
+    """
+    Parse mentor's readiness assessment from response text
+    
+    CRITICAL FIX: ChatGPT's exact solution for the student_ready_for_investor bug
+    
+    Args:
+        text: Mentor's response text
+        
+    Returns:
+        True if "proceed_to_investor: yes"
+        False if "proceed_to_investor: no" 
+        None if no explicit decision found
+    """
+    if not text:
+        return None
+        
+    # Look for explicit readiness assessment (case-insensitive)
+    match = re.search(r"proceed_to_investor:\s*(yes|no)", text, re.IGNORECASE)
+    if match:
+        return match.group(1).lower() == "yes"
+    
+    # Fallback: look for alternative phrasings
+    text_lower = text.lower()
+    if "ready for investor" in text_lower and "yes" in text_lower:
+        return True
+    elif "not ready" in text_lower and "investor" in text_lower:
+        return False
+    
+    return None
 
 
 class MentorService:
@@ -60,21 +97,17 @@ class MentorService:
         Returns:
             MentorState: Current conversation state reconstructed from DB
         """
-        print(f"🔍 Debug: Getting session from database...")
+        logger.debug(f"Loading session state for {session_id}")
         
         # Get session from database with detailed error catching
         try:
-            print(f"🔍 Debug: Calling crud.get_session...")
             db_session = crud.get_session(db, session_id)
-            print(f"🔍 Debug: crud.get_session returned: {type(db_session)}")
         except Exception as e:
-            print(f"❌ Error in crud.get_session: {e}")
+            logger.error(f"Error in crud.get_session: {e}")
             raise e
             
-        print(f"🔍 Debug: db_session result: {db_session}")
-        
         if not db_session:
-            print(f"🔍 Debug: No session found, returning fresh state")
+            logger.debug("No session found, returning fresh state")
             # Return fresh state for new sessions
             return {
                 "student_info": {},
@@ -85,14 +118,12 @@ class MentorService:
                 "student_ready_for_investor": False
             }
         
-        print(f"🔍 Debug: Session found, getting messages...")
         # Get all messages for this session, ordered by creation time
         try:
-            print(f"🔍 Debug: Calling crud.get_messages_by_session...")
             messages = crud.get_messages_by_session(db, session_id)
-            print(f"🔍 Debug: Found {len(messages)} messages")
+            logger.debug(f"Found {len(messages)} messages")
         except Exception as e:
-            print(f"❌ Error getting messages: {e}")
+            logger.error(f"Error getting messages: {e}")
             raise e
         
         # Convert database messages to agent format
@@ -107,49 +138,55 @@ class MentorService:
         student_info = {}
         
         try:
-            print(f"🔍 Debug: Accessing student_name...")
             if db_session.student_name:
                 student_info["name"] = db_session.student_name
-                
-            print(f"🔍 Debug: Accessing student_hobby...")  
             if db_session.student_hobby:
                 student_info["hobby"] = db_session.student_hobby
-                
-            print(f"🔍 Debug: Accessing student_age...")
             if db_session.student_age:
                 student_info["age"] = db_session.student_age
-                
-            print(f"🔍 Debug: Accessing student_location...")
             if db_session.student_location:
                 student_info["location"] = db_session.student_location
-                
-            print(f"🔍 Debug: Accessing business_idea...")
             if db_session.business_idea:
                 student_info["business_idea"] = db_session.business_idea
-                
-            print(f"🔍 Debug: Accessing target_audience...")
             if db_session.target_audience:
                 student_info["target_audience"] = db_session.target_audience
         except Exception as e:
-            print(f"❌ Error accessing session fields: {e}")
+            logger.error(f"Error accessing session fields: {e}")
             raise e
         
-        print(f"🔍 Debug: Reconstructed student_info: {student_info}")
+        logger.debug(f"Reconstructed student_info: {student_info}")
         
-        # Determine student readiness from mentor completion status
-        # WHY: If mentor is complete, we assume student is ready (can be refined later)
-        student_ready = db_session.mentor_complete
+        # 🔧 CRITICAL FIX: Parse mentor's actual assessment instead of assuming readiness
+        student_ready = False  # Default to not ready
         
-        print(f"🔍 Debug: About to return state...")
+        if db_session.mentor_complete and agent_messages:
+            # Find the last mentor message
+            last_mentor_message = ""
+            for msg in reversed(agent_messages):
+                if msg["role"] == "assistant":
+                    last_mentor_message = msg["content"]
+                    break
+            
+            # Parse the mentor's readiness assessment
+            parsed_ready = parse_ready_flag(last_mentor_message)
+            
+            if parsed_ready is not None:
+                student_ready = parsed_ready
+                logger.info(f"Parsed mentor decision: {'ready' if student_ready else 'not ready'} for investor")
+            else:
+                # Fallback: if mentor is complete but no explicit decision, assume not ready
+                # This maintains pedagogical integrity (conservative approach)
+                student_ready = False
+                logger.info("Mentor complete but no explicit readiness decision found - assuming not ready")
+        
         # Reconstruct state from database data
-        # WHY: Agent needs this exact state structure to work properly
         return {
             "student_info": student_info,
             "messages": agent_messages,
             "question_count": len([m for m in agent_messages if m["role"] == "assistant"]),
             "exchange_count": len(agent_messages),
             "mentor_complete": db_session.mentor_complete,
-            "student_ready_for_investor": student_ready
+            "student_ready_for_investor": student_ready  # ← Now correctly parsed!
         }
     
     def _save_session_state(self, session_id: str, updated_state: MentorState, 
@@ -244,70 +281,58 @@ class MentorService:
             Dict with AI response and session status for web client
         """
         
-        print(f"🔍 Debug: Starting process_mentor_message")
-        print(f"🔍 Debug: session_id={session_id}, user_message='{user_message}'")
-        print(f"🔍 Debug: db type: {type(db)}")
+        logger.debug(f"Processing mentor message for session {session_id}")
         
         try:
-            print(f"🔍 Debug: About to call _load_session_state")
             # Step 1: Load current state from database
-            # WHY: Agent needs conversation history to provide intelligent responses
             current_state = self._load_session_state(session_id, db)
-            
-            print(f"📂 Loaded session {session_id}: {len(current_state['messages'])} messages")
-            print(f"🔍 Debug: Current state keys: {list(current_state.keys())}")
+            logger.info(f"Loaded session {session_id}: {len(current_state['messages'])} messages")
             
             # Step 2: Process message using your existing agent logic
-            # WHY: This is where your LangGraph intelligence and YAML prompts work
-            print(f"🔍 Debug: About to process message with agent logic")
-            print(f"🔍 Debug: current_state type: {type(current_state)}")
-            print(f"🔍 Debug: current_state keys: {list(current_state.keys())}")
-            
             try:
-                print(f"🔍 Debug: Calling process_single_mentor_message...")
                 result = process_single_mentor_message(current_state, user_message)
-                print(f"🔍 Debug: process_single_mentor_message succeeded")
+                logger.debug("Agent processing successful")
             except Exception as e:
-                print(f"❌ Error in process_single_mentor_message: {e}")
-                import traceback
-                traceback.print_exc()
+                logger.error(f"Error in process_single_mentor_message: {e}")
                 raise e
             
-            print(f"🤖 Agent processed message, complete: {result['mentor_complete']}")
-            print(f"🔍 Debug: Agent result keys: {list(result.keys())}")
+            logger.info(f"Agent processed message, complete: {result['mentor_complete']}")
             
-            # Step 3: Save updated state to database
-            # WHY: Web is stateless, so we must persist conversation for next request
-            print(f"🔍 Debug: About to save session state")
+            # Step 3: Parse the AI response for readiness assessment
+            ai_response = result['ai_response']
+            parsed_ready = parse_ready_flag(ai_response)
+            
+            # Override the agent's student_ready with our parsed decision
+            if parsed_ready is not None:
+                result['student_ready'] = parsed_ready
+                logger.info(f"Overrode agent readiness with parsed decision: {parsed_ready}")
+            
+            # Step 4: Save updated state to database
             self._save_session_state(
                 session_id=session_id,
                 updated_state=result['updated_state'],
                 new_message=user_message,
-                ai_response=result['ai_response'],
+                ai_response=ai_response,
                 db=db
             )
             
-            print(f"💾 Saved session state to database")
+            logger.debug("Session state saved to database")
             
-            # Step 4: Extract the AI response (last assistant message)
-            ai_response = result['ai_response']
-            
-            # Step 5: Return web-friendly response
-            # WHY: FastAPI needs structured JSON response with all status info
+            # Step 5: Return web-friendly response with corrected readiness logic
             return {
                 "success": True,
                 "ai_response": ai_response,
                 "session_id": session_id,
                 "mentor_complete": result.get("mentor_complete", False),
-                "student_ready_for_investor": result.get("student_ready", False),
+                "student_ready_for_investor": result.get("student_ready", False),  # Now correctly parsed
                 "question_count": result.get("question_count", 0),
                 "student_info": result.get("student_info", {}),
-                "next_phase": "investor" if result.get("mentor_complete", False) else "mentor"
+                "next_phase": "investor" if (result.get("mentor_complete", False) and result.get("student_ready", False)) else "mentor"
             }
             
         except Exception as e:
             # Error handling for production readiness
-            print(f"❌ Error in mentor service: {str(e)}")
+            logger.error(f"Error in mentor service: {str(e)}")
             return {
                 "success": False,
                 "error": f"Mentor service error: {str(e)}",
@@ -340,12 +365,11 @@ class MentorService:
             "mentor_complete": current_state["mentor_complete"],
             "student_ready_for_investor": current_state.get("student_ready_for_investor", False),
             "student_info": current_state["student_info"],
-            "current_phase": "investor" if current_state["mentor_complete"] else "mentor"
+            "current_phase": "investor" if (current_state["mentor_complete"] and current_state.get("student_ready_for_investor", False)) else "mentor"
         }
 
 
 # Global service instance
-# WHY: FastAPI will import this and use it in endpoints
 mentor_service = MentorService()
 
 
