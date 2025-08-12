@@ -151,3 +151,77 @@ class EvaluationResponse(BaseModel):
     improvements: List[str] = []
     evaluator_complete: bool = False
     feedback_document_path: Optional[str] = None
+
+
+    # =============================================================================
+# ORCHESTRATOR SCHEMAS - Add to end of schemas.py
+# =============================================================================
+
+class OrchestratorMessageRequest(BaseModel):
+    """
+    Request schema for the unified orchestrator endpoint
+    
+    PURPOSE: Single endpoint for all agent interactions
+    """
+    session_id: Optional[str] = None  # Auto-generated if not provided
+    message: str = Field(..., min_length=1, max_length=2000)
+
+class OrchestratorInfo(BaseModel):
+    """
+    Orchestrator routing metadata
+    
+    PURPOSE: Track which service handled the message and routing decisions
+    """
+    routed_to: str  # "mentor", "investor", "evaluator", "complete", etc.
+    original_session_id: Optional[str] = None
+    routing_successful: bool = True
+    timestamp: Optional[str] = None
+    error_occurred: Optional[bool] = None
+
+class OrchestratorMessageResponse(BaseModel):
+    """
+    Unified response schema for orchestrator endpoint
+    
+    PURPOSE: Consistent response format regardless of which agent processed the message
+    """
+    session_id: str
+    response: str  # Normalized response text (from "ai_response" or "response")
+    current_phase: str  # "mentor", "investor", "evaluator", "complete"
+    phase_complete: bool
+    
+    # Critical routing fields (from your existing services)
+    mentor_complete: Optional[bool] = None
+    student_ready_for_investor: Optional[bool] = None
+    investor_complete: Optional[bool] = None
+    evaluator_complete: Optional[bool] = None
+    
+    # Transition information
+    next_phase: Optional[str] = None
+    transition_message: Optional[str] = None
+    auto_advance: Optional[bool] = None
+    
+    # Session lifecycle
+    new_session_created: Optional[bool] = None
+    session_ended: Optional[bool] = None
+    end_reason: Optional[str] = None
+    end_message: Optional[str] = None
+    
+    # Auto-triggered processes
+    auto_triggered: Optional[bool] = None
+    auto_evaluation_message: Optional[str] = None
+    
+    # Data payloads
+    metadata: Optional[Dict[str, Any]] = None
+    evaluation_results: Optional[Dict[str, Any]] = None
+    
+    # Status indicators
+    success: Optional[bool] = None
+    error: Optional[bool] = None
+    error_details: Optional[str] = None
+    
+    # Previous session tracking (for new sessions)
+    previous_session_id: Optional[str] = None
+    previous_end_reason: Optional[str] = None
+    
+    # Orchestrator metadata
+    orchestrator_info: OrchestratorInfo

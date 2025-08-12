@@ -18,6 +18,7 @@ class Session(Base):
     mentor_complete = Column(Boolean, default=False)
     investor_complete = Column(Boolean, default=False)
     evaluator_complete = Column(Boolean, default=False)
+    student_ready_for_investor = Column(Boolean, default=False)
 
     # Business idea info
     business_idea = Column(Text, nullable=True)

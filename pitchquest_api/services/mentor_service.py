@@ -230,6 +230,7 @@ class MentorService:
             # Update existing session with individual fields
             session_updates = {
                 "mentor_complete": updated_state["mentor_complete"],
+                "student_ready_for_investor": updated_state["student_ready_for_investor", False],
                 
                 # Map student_info dict to individual columns
                 "student_name": updated_state["student_info"].get("name"),

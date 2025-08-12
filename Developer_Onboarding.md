@@ -1,340 +1,187 @@
-# 🚀 Developer Onboarding Guide - August 12, 2025
-## Building the Orchestrator Service: The Final Piece
+# 🎯 Tomorrow's Action Plan - August 13, 2025
+
+## 📊 Current Status: 99% Backend Complete
+**Goal:** Verify 100% backend completion → Start frontend development
 
 ---
 
-## 👋 Welcome Back!
+## 🧪 PART 1: Comprehensive Backend Testing (30 minutes)
 
-Whether you're returning after a break or jumping in fresh, this guide will get you up to speed quickly. Today, we're building the **orchestrator service** - the crown jewel that ties everything together into one elegant API.
+### **Test 1: Complete Success Flow (15 minutes)**
+**Objective:** Verify seamless mentor → investor → evaluator → complete flow
 
-### **What You're Building Today:**
-A single endpoint (`/api/orchestrator/message`) that automatically routes messages to the correct agent (mentor, investor, or evaluator) based on session state. Think of it as an intelligent traffic controller for your multi-agent system.
-
----
-
-## 🏗️ Current System Architecture
-
-### **What's Already Built (and Working!):**
-
+```bash
+# Test sequence:
+1. New session message → mentor
+2. Build student profile → mentor continues
+3. Strong pitch development → mentor says "proceed_to_investor: yes"
+4. Next message → auto-routes to investor (CRITICAL TEST)
+5. Investor persona selection → investor conversation
+6. Complete pitch → auto-triggers evaluator (CRITICAL TEST)
+7. Evaluation complete → session done
+8. New message → creates fresh session (CRITICAL TEST)
 ```
-PitchQuest/
-├── agents/                      ✅ Core agent logic (DO NOT MODIFY)
-│   ├── mentor_agent.py         ✅ Working - handles mentoring
-│   ├── investor_agent.py       ✅ Working - handles pitching
-│   └── evaluator_agent.py      ✅ Working - generates feedback
-│
-├── pitchquest_api/             
-│   ├── services/               ✅ Web service layer
-│   │   ├── mentor_service.py   ✅ Complete - your template!
-│   │   ├── investor_service.py ✅ Complete
-│   │   ├── evaluator_service.py ✅ Complete
-│   │   └── orchestrator_service.py 🎯 TODAY'S TASK
-│   │
-│   ├── routers/                ✅ API endpoints
-│   │   ├── mentor.py           ✅ Working
-│   │   ├── investor.py         ✅ Working
-│   │   ├── evaluator.py        ✅ Working
-│   │   └── orchestrator.py     🎯 TODAY'S TASK
-│   │
-│   ├── database.py             ✅ PostgreSQL connection
-│   ├── models.py               ✅ Database schema (sessions, messages, evaluations)
-│   ├── crud.py                 ✅ Database operations
-│   ├── schemas.py              ✅ Request/response models
-│   └── main.py                 ✅ FastAPI app (needs orchestrator registration)
-│
-├── session_orchestrator.py      📚 REFERENCE - Shows local LangGraph flow
-└── evaluations/                 📁 Where feedback documents are saved
+
+**Success Criteria:**
+- ✅ Automatic phase transitions work
+- ✅ student_ready_for_investor saves correctly
+- ✅ No manual intervention needed
+- ✅ Complete 8-step flow works seamlessly
+
+### **Test 2: Edge Cases & Error Handling (15 minutes)**
+```bash
+# Test scenarios:
+- Invalid session_id handling
+- Malformed requests
+- Empty messages
+- Service errors
+- Database disconnection recovery
 ```
 
 ---
 
-## 🎯 Today's Mission: The Orchestrator
+## 🎨 PART 2: Next.js + React Frontend Implementation (30 minutes)
 
-### **Why We Need It:**
-Currently, the frontend would need to:
-1. Know which agent to call
-2. Track session state
-3. Handle phase transitions
-4. Manage special cases
+### **Frontend Architecture: Next.js + shadcn/ui** ✅
+**Following ChatGPT's excellent plan:**
+- **Modern chat interface** (like ChatGPT/Claude)
+- **shadcn/ui components** (professional, accessible)
+- **TypeScript** for better development
+- **Clean API integration** with orchestrator endpoint
 
-**The orchestrator eliminates all this complexity!**
+### **Quick Setup (from ChatGPT's plan):**
+```bash
+# Create Next.js app
+npx create-next-app@latest agent-academy --ts --eslint --src-dir --app --import-alias "@/*"
+cd agent-academy
 
-### **How It Works:**
+# Add shadcn/ui for professional components
+npm install clsx tailwind-merge lucide-react
+npx shadcn@latest init -d
+npx shadcn@latest add button card input textarea badge sheet separator
 
-```python
-# Frontend just does this:
-POST /api/orchestrator/message
-{
-    "session_id": "abc-123",  # Optional - auto-generated if not provided
-    "message": "Hi, I need help with my pitch"
+# Environment config
+echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api" > .env.local
+```
+
+### **Component Architecture (from ChatGPT):**
+```
+src/
+├── app/
+│   ├── layout.tsx          # App layout
+│   └── page.tsx           # Main chat interface
+├── lib/
+│   ├── api.ts             # Orchestrator API client
+│   ├── types.ts           # TypeScript definitions
+│   └── session.ts         # Session ID persistence
+└── components/
+    ├── Chat.tsx           # Main chat wrapper
+    ├── MessageList.tsx    # Message display
+    ├── Composer.tsx       # Message input
+    ├── PhaseBadge.tsx     # Phase indicator
+    └── PersonaSheet.tsx   # Investor selection modal
+```
+
+### **API Integration Pattern:**
+```typescript
+// Calls your unified endpoint
+await sendMessage({
+  session_id: sessionId,
+  message: userInput
+});
+
+// Handles all routing automatically
+// Returns unified response format
+```
+
+---
+
+## 🎯 PART 3: Core Components Implementation (20 minutes)
+
+### **Key Features to Implement:**
+- **Chat Interface** - Modern message bubbles
+- **Phase Indicators** - Visual progress (mentor → investor → evaluator)
+- **Persona Selection** - Modal for investor choice
+- **Session Management** - localStorage persistence
+- **Evaluation Display** - Score and feedback presentation
+
+### **API Contract (What Frontend Expects):**
+```typescript
+interface OrchestratorResponse {
+  session_id: string;
+  response: string;
+  current_phase: "mentor" | "investor" | "evaluator" | "complete";
+  phase_complete: boolean;
+  metadata?: {
+    persona_required?: boolean;
+    evaluation_results?: any;
+  };
 }
-
-# Orchestrator automatically:
-1. Checks session state (or creates new)
-2. Determines current phase (mentor/investor/evaluator)
-3. Routes to correct service
-4. Returns unified response
 ```
+
+**Goal:** Professional chat UI that integrates seamlessly with your orchestrator
 
 ---
 
-## 📋 Step-by-Step Implementation Guide
+## 📋 Tomorrow's Success Criteria
 
-### **📍 Step 1: Understand the Routing Logic**
+### **Backend Verification:**
+- [ ] Complete success flow works (mentor → investor → evaluator)
+- [ ] All phase transitions automatic
+- [ ] Database persistence correct
+- [ ] Error handling robust
+- [ ] Edge cases handled
 
-The orchestrator needs to determine which agent to use:
-
-```python
-def determine_phase(session):
-    if not session:
-        return "mentor"  # New sessions start with mentor
-    
-    if not session.mentor_complete:
-        return "mentor"  # Continue mentoring
-    
-    if not session.investor_complete:
-        return "investor"  # Move to investor
-    
-    if not session.evaluator_complete:
-        return "evaluator"  # Time for evaluation
-    
-    return "complete"  # All done!
-```
-
-### **📍 Step 2: Create the Orchestrator Service**
-
-**File:** `pitchquest_api/services/orchestrator_service.py`
-
-**Key Patterns to Follow:**
-1. **Import all three services** (mentor, investor, evaluator)
-2. **Load session state** using crud operations
-3. **Route based on phase** 
-4. **Return unified response**
-
-**Template Structure:**
-```python
-class OrchestratorService:
-    def process_message(self, session_id: Optional[str], message: str, db: DatabaseSession):
-        # 1. Generate session_id if not provided
-        # 2. Load session from database
-        # 3. Determine current phase
-        # 4. Route to appropriate service
-        # 5. Return unified response
-```
-
-### **📍 Step 3: Create the Router**
-
-**File:** `pitchquest_api/routers/orchestrator.py`
-
-**Simple and Clean:**
-```python
-@router.post("/message")
-async def process_message(request: OrchestratorMessageRequest, db: Session = Depends(get_db)):
-    result = orchestrator_service.process_message(
-        session_id=request.session_id,
-        message=request.message,
-        db=db
-    )
-    return OrchestratorMessageResponse(**result)
-```
-
-### **📍 Step 4: Register in main.py**
-
-```python
-from .routers import orchestrator  # Add this
-app.include_router(orchestrator.router, prefix="/api/orchestrator", tags=["orchestrator"])
-```
+### **Frontend Start:**
+- [ ] Architecture decision made
+- [ ] Basic chat interface working
+- [ ] API integration successful
+- [ ] Session management functional
+- [ ] Ready for Phase 4 development
 
 ---
 
-## 🔍 Critical Files to Reference
+## 🏆 End Goal Tomorrow
 
-### **1. session_orchestrator.py** 
-**Why:** Shows the complete LangGraph flow and routing logic
-**Look for:** 
-- `should_continue_mentor()` - routing logic
-- Phase transition conditions
-- State structure
-
-### **2. services/mentor_service.py**
-**Why:** Your best template for service patterns
-**Look for:**
-- `process_mentor_message()` - main processing pattern
-- State loading/saving patterns
-- Response structure
-
-### **3. schemas.py**
-**Why:** Has the request/response models you'll need
-**Look for:**
-- `OrchestratorMessageRequest`
-- `OrchestratorMessageResponse`
-- Field definitions
-
-### **4. crud.py**
-**Why:** Database operations you'll use
-**Key functions:**
-- `get_session()` - load session
-- `create_session()` - new session
-- `update_session()` - update phase
+**By end of session:**
+✅ **100% Backend Complete** - All flows tested and verified  
+✅ **Frontend Foundation** - Basic working interface  
+✅ **Integration Proven** - Frontend calls orchestrator successfully  
+🎯 **Ready for Phase 4** - Production polish and deployment
 
 ---
 
-## ⚠️ Special Cases to Handle
+## ⏱️ Time Allocation
 
-### **1. Investor Persona Selection**
-```python
-if current_phase == "investor" and message.lower() in ["start", "begin"]:
-    # Trigger persona selection interface
-    message = "start"
-```
+- **30 min:** Backend testing & verification
+- **20 min:** Frontend planning & architecture  
+- **10 min:** Basic frontend implementation
+- **5 min:** Next session planning
 
-### **2. Auto-Evaluation**
-```python
-if current_phase == "evaluator":
-    # Don't wait for user message, auto-trigger evaluation
-    result = evaluator_service.evaluate_pitch(session_id, db)
-```
-
-### **3. New Session Creation**
-```python
-if not session_id:
-    session_id = str(uuid.uuid4())
-    # Session will be created by mentor service on first message
-```
+**Total: 65 minutes to complete backend + start frontend**
 
 ---
 
-## 🧪 Testing Your Implementation
+## 🎯 Key Focus Areas
 
-### **Test Sequence:**
+### **Critical Tests:**
+1. **Auto-routing verification** - Does orchestrator route correctly?
+2. **Phase transitions** - Do mentor/investor/evaluator transitions work?
+3. **Database persistence** - Are all fields saving correctly?
 
-1. **New Session Test**
-```bash
-POST /api/orchestrator/message
-{
-    "message": "Hi, I need help"
-}
-# Should: Create session, route to mentor
-```
-
-2. **Complete Flow Test**
-```bash
-# Message 1-4: Mentor phase
-# Message 5: Should auto-switch to investor
-# Message 6: Should show persona selection
-# Message 7-12: Investor conversation
-# Message 13: Should auto-evaluate
-```
-
-3. **Edge Cases**
-- Missing session_id (should auto-generate)
-- Complete session (should return "complete" message)
-- Invalid session_id (should handle gracefully)
+### **Frontend Priorities:**
+1. **Simple and functional** over complex and broken
+2. **API integration** - Connect to orchestrator endpoint
+3. **User experience** - Clear phase indicators and messaging
 
 ---
 
-## 💡 Pro Tips
+## 🚀 The Big Picture
 
-### **1. Use Logging Liberally**
-```python
-logger.info(f"Session {session_id} in phase: {current_phase}")
-```
+**Tomorrow you achieve:**
+- Complete working multi-agent backend ✅
+- Functional frontend interface ✅  
+- End-to-end system demonstration ✅
+- Ready for production polish ✅
 
-### **2. Check the Database**
-```sql
-SELECT * FROM sessions WHERE id = 'your-session-id';
-SELECT COUNT(*) FROM messages WHERE session_id = 'your-session-id';
-```
-
-### **3. Return Consistent Responses**
-Always include: session_id, response, current_phase, phase_complete, metadata
-
-### **4. Test via /docs**
-FastAPI's interactive docs at `http://localhost:8000/docs` are your best friend!
-
----
-
-## 🎯 Success Criteria
-
-You'll know you're done when:
-
-✅ **Single endpoint** handles entire conversation flow
-✅ **Automatic routing** to correct agent based on state
-✅ **Phase transitions** happen seamlessly
-✅ **Special cases** handled (persona selection, auto-evaluation)
-✅ **Complete session** works from start to finish through one endpoint
-
----
-
-## 🚑 Troubleshooting Guide
-
-### **Import Errors?**
-- Check the import patterns in mentor_service.py
-- Use relative imports for routers: `from ..services.orchestrator_service import orchestrator_service`
-
-### **Phase Not Switching?**
-- Check database: Is `mentor_complete` being set to `true`?
-- Verify the routing logic matches the database field names
-
-### **Evaluation Not Triggering?**
-- The evaluator expects investor messages with `agent_type='investor'`
-- Check messages table to ensure they're being saved correctly
-
-### **Session Not Found?**
-- Ensure session is created on first message
-- Check if session_id is being passed correctly
-
----
-
-## 📚 Quick Command Reference
-
-```bash
-# Start the server
-cd PitchQuest
-source pitchquest_env/bin/activate
-uvicorn pitchquest_api.main:app --reload
-
-# Test the orchestrator
-curl -X POST "http://localhost:8000/api/orchestrator/message" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Hello"}'
-
-# Check database
-python
->>> from pitchquest_api.database import SessionLocal
->>> from pitchquest_api import crud
->>> db = SessionLocal()
->>> session = crud.get_session(db, "your-session-id")
->>> print(session.current_phase)
-```
-
----
-
-## 🎉 You've Got This!
-
-Remember:
-- The hard work is already done (all agents are working)
-- You're just building a smart traffic controller
-- The patterns are all there in the existing services
-- Take it step by step
-
-### **Expected Time:**
-- 30 minutes for implementation
-- 10 minutes for testing
-- 5 minutes for celebration! 🎉
-
----
-
-## 📞 Next Steps After Orchestrator
-
-Once the orchestrator is working:
-1. **Quick Integration Test:** Run a complete session through the single endpoint
-2. **Consider Frontend:** Simple Streamlit app to visualize the flow
-3. **Polish:** Add any missing error handling
-4. **Document:** Update API documentation
-
----
-
-**Good luck! You're one service away from a complete multi-agent educational system!** 🚀
-
-*Remember: The orchestrator is just a router. It doesn't do any AI work itself - it just knows where to send messages. Keep it simple!*
+**You're one session away from a complete educational AI system!** 🎉

@@ -110,6 +110,7 @@ def update_session(db: DatabaseSession, session_id: str, updates: Dict[str, Any]
     # Update other allowed fields (only if they exist on the model)
     allowed_fields = {
         "current_phase", "mentor_complete", "investor_complete", "evaluator_complete",
+        "student_ready_for_investor",  # ← ADD THIS LINE
         "student_name", "student_hobby", "student_age", "student_location", 
         "business_idea", "target_audience", "selected_investor"
     }

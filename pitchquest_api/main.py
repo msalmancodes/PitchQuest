@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import health, sessions, mentor, investor, evaluator  # ← ADDED: mentor import
+from .routers import health, sessions, mentor, investor, evaluator, orchestrator  # ← ADDED: mentor import
 
 app = FastAPI(
     title="PitchQuest API",
@@ -24,7 +24,7 @@ app.include_router(sessions.router)
 app.include_router(mentor.router, prefix="/api/mentor", tags=["mentor"])  # ← ADDED: mentor router
 app.include_router(investor.router, prefix = "/api/investor", tags=['investor'])
 app.include_router(evaluator.router, prefix = "/api/evaluator", tags=['evaluator'])
-
+app.include_router(orchestrator.router, prefix = "/api/orchestrator", tags=['orchestrator'])
 @app.get("/")
 async def root():
     return {"message": "PitchQuest API is running!"}
