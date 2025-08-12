@@ -1,281 +1,340 @@
-# 🗂️ REPOSITORY SCAFFOLDING - Next Session Development Guide
+# 🚀 Developer Onboarding Guide - August 12, 2025
+## Building the Orchestrator Service: The Final Piece
 
-## 🎯 QUICK START FOR NEXT SESSION
+---
 
-### **🚀 Immediate Setup (5 minutes):**
+## 👋 Welcome Back!
+
+Whether you're returning after a break or jumping in fresh, this guide will get you up to speed quickly. Today, we're building the **orchestrator service** - the crown jewel that ties everything together into one elegant API.
+
+### **What You're Building Today:**
+A single endpoint (`/api/orchestrator/message`) that automatically routes messages to the correct agent (mentor, investor, or evaluator) based on session state. Think of it as an intelligent traffic controller for your multi-agent system.
+
+---
+
+## 🏗️ Current System Architecture
+
+### **What's Already Built (and Working!):**
+
+```
+PitchQuest/
+├── agents/                      ✅ Core agent logic (DO NOT MODIFY)
+│   ├── mentor_agent.py         ✅ Working - handles mentoring
+│   ├── investor_agent.py       ✅ Working - handles pitching
+│   └── evaluator_agent.py      ✅ Working - generates feedback
+│
+├── pitchquest_api/             
+│   ├── services/               ✅ Web service layer
+│   │   ├── mentor_service.py   ✅ Complete - your template!
+│   │   ├── investor_service.py ✅ Complete
+│   │   ├── evaluator_service.py ✅ Complete
+│   │   └── orchestrator_service.py 🎯 TODAY'S TASK
+│   │
+│   ├── routers/                ✅ API endpoints
+│   │   ├── mentor.py           ✅ Working
+│   │   ├── investor.py         ✅ Working
+│   │   ├── evaluator.py        ✅ Working
+│   │   └── orchestrator.py     🎯 TODAY'S TASK
+│   │
+│   ├── database.py             ✅ PostgreSQL connection
+│   ├── models.py               ✅ Database schema (sessions, messages, evaluations)
+│   ├── crud.py                 ✅ Database operations
+│   ├── schemas.py              ✅ Request/response models
+│   └── main.py                 ✅ FastAPI app (needs orchestrator registration)
+│
+├── session_orchestrator.py      📚 REFERENCE - Shows local LangGraph flow
+└── evaluations/                 📁 Where feedback documents are saved
+```
+
+---
+
+## 🎯 Today's Mission: The Orchestrator
+
+### **Why We Need It:**
+Currently, the frontend would need to:
+1. Know which agent to call
+2. Track session state
+3. Handle phase transitions
+4. Manage special cases
+
+**The orchestrator eliminates all this complexity!**
+
+### **How It Works:**
+
+```python
+# Frontend just does this:
+POST /api/orchestrator/message
+{
+    "session_id": "abc-123",  # Optional - auto-generated if not provided
+    "message": "Hi, I need help with my pitch"
+}
+
+# Orchestrator automatically:
+1. Checks session state (or creates new)
+2. Determines current phase (mentor/investor/evaluator)
+3. Routes to correct service
+4. Returns unified response
+```
+
+---
+
+## 📋 Step-by-Step Implementation Guide
+
+### **📍 Step 1: Understand the Routing Logic**
+
+The orchestrator needs to determine which agent to use:
+
+```python
+def determine_phase(session):
+    if not session:
+        return "mentor"  # New sessions start with mentor
+    
+    if not session.mentor_complete:
+        return "mentor"  # Continue mentoring
+    
+    if not session.investor_complete:
+        return "investor"  # Move to investor
+    
+    if not session.evaluator_complete:
+        return "evaluator"  # Time for evaluation
+    
+    return "complete"  # All done!
+```
+
+### **📍 Step 2: Create the Orchestrator Service**
+
+**File:** `pitchquest_api/services/orchestrator_service.py`
+
+**Key Patterns to Follow:**
+1. **Import all three services** (mentor, investor, evaluator)
+2. **Load session state** using crud operations
+3. **Route based on phase** 
+4. **Return unified response**
+
+**Template Structure:**
+```python
+class OrchestratorService:
+    def process_message(self, session_id: Optional[str], message: str, db: DatabaseSession):
+        # 1. Generate session_id if not provided
+        # 2. Load session from database
+        # 3. Determine current phase
+        # 4. Route to appropriate service
+        # 5. Return unified response
+```
+
+### **📍 Step 3: Create the Router**
+
+**File:** `pitchquest_api/routers/orchestrator.py`
+
+**Simple and Clean:**
+```python
+@router.post("/message")
+async def process_message(request: OrchestratorMessageRequest, db: Session = Depends(get_db)):
+    result = orchestrator_service.process_message(
+        session_id=request.session_id,
+        message=request.message,
+        db=db
+    )
+    return OrchestratorMessageResponse(**result)
+```
+
+### **📍 Step 4: Register in main.py**
+
+```python
+from .routers import orchestrator  # Add this
+app.include_router(orchestrator.router, prefix="/api/orchestrator", tags=["orchestrator"])
+```
+
+---
+
+## 🔍 Critical Files to Reference
+
+### **1. session_orchestrator.py** 
+**Why:** Shows the complete LangGraph flow and routing logic
+**Look for:** 
+- `should_continue_mentor()` - routing logic
+- Phase transition conditions
+- State structure
+
+### **2. services/mentor_service.py**
+**Why:** Your best template for service patterns
+**Look for:**
+- `process_mentor_message()` - main processing pattern
+- State loading/saving patterns
+- Response structure
+
+### **3. schemas.py**
+**Why:** Has the request/response models you'll need
+**Look for:**
+- `OrchestratorMessageRequest`
+- `OrchestratorMessageResponse`
+- Field definitions
+
+### **4. crud.py**
+**Why:** Database operations you'll use
+**Key functions:**
+- `get_session()` - load session
+- `create_session()` - new session
+- `update_session()` - update phase
+
+---
+
+## ⚠️ Special Cases to Handle
+
+### **1. Investor Persona Selection**
+```python
+if current_phase == "investor" and message.lower() in ["start", "begin"]:
+    # Trigger persona selection interface
+    message = "start"
+```
+
+### **2. Auto-Evaluation**
+```python
+if current_phase == "evaluator":
+    # Don't wait for user message, auto-trigger evaluation
+    result = evaluator_service.evaluate_pitch(session_id, db)
+```
+
+### **3. New Session Creation**
+```python
+if not session_id:
+    session_id = str(uuid.uuid4())
+    # Session will be created by mentor service on first message
+```
+
+---
+
+## 🧪 Testing Your Implementation
+
+### **Test Sequence:**
+
+1. **New Session Test**
 ```bash
+POST /api/orchestrator/message
+{
+    "message": "Hi, I need help"
+}
+# Should: Create session, route to mentor
+```
+
+2. **Complete Flow Test**
+```bash
+# Message 1-4: Mentor phase
+# Message 5: Should auto-switch to investor
+# Message 6: Should show persona selection
+# Message 7-12: Investor conversation
+# Message 13: Should auto-evaluate
+```
+
+3. **Edge Cases**
+- Missing session_id (should auto-generate)
+- Complete session (should return "complete" message)
+- Invalid session_id (should handle gracefully)
+
+---
+
+## 💡 Pro Tips
+
+### **1. Use Logging Liberally**
+```python
+logger.info(f"Session {session_id} in phase: {current_phase}")
+```
+
+### **2. Check the Database**
+```sql
+SELECT * FROM sessions WHERE id = 'your-session-id';
+SELECT COUNT(*) FROM messages WHERE session_id = 'your-session-id';
+```
+
+### **3. Return Consistent Responses**
+Always include: session_id, response, current_phase, phase_complete, metadata
+
+### **4. Test via /docs**
+FastAPI's interactive docs at `http://localhost:8000/docs` are your best friend!
+
+---
+
+## 🎯 Success Criteria
+
+You'll know you're done when:
+
+✅ **Single endpoint** handles entire conversation flow
+✅ **Automatic routing** to correct agent based on state
+✅ **Phase transitions** happen seamlessly
+✅ **Special cases** handled (persona selection, auto-evaluation)
+✅ **Complete session** works from start to finish through one endpoint
+
+---
+
+## 🚑 Troubleshooting Guide
+
+### **Import Errors?**
+- Check the import patterns in mentor_service.py
+- Use relative imports for routers: `from ..services.orchestrator_service import orchestrator_service`
+
+### **Phase Not Switching?**
+- Check database: Is `mentor_complete` being set to `true`?
+- Verify the routing logic matches the database field names
+
+### **Evaluation Not Triggering?**
+- The evaluator expects investor messages with `agent_type='investor'`
+- Check messages table to ensure they're being saved correctly
+
+### **Session Not Found?**
+- Ensure session is created on first message
+- Check if session_id is being passed correctly
+
+---
+
+## 📚 Quick Command Reference
+
+```bash
+# Start the server
 cd PitchQuest
 source pitchquest_env/bin/activate
-uvicorn pitchquest_api.main:app --reload --host 0.0.0.0 --port 8000
-# Keep this running, open new terminal for work
-```
+uvicorn pitchquest_api.main:app --reload
 
-### **🔍 Validation Check:**
-- Visit: `http://localhost:8000/docs`
-- Confirm mentor endpoints working
-- Test one mentor message to verify bug fix
+# Test the orchestrator
+curl -X POST "http://localhost:8000/api/orchestrator/message" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello"}'
 
----
-
-## 📁 FILE FOCUS MAP - What to Work On
-
-### **🎯 SESSION 1: Investor Service (40 min)**
-
-**📝 FILES TO CREATE:**
-```
-services/investor_service.py         # ⭐ MAIN TASK - Copy mentor_service.py pattern
-routers/investor.py                  # 🔗 API endpoints - Copy mentor router pattern
-```
-
-**📖 TEMPLATE FILES (Copy From):**
-```
-services/mentor_service.py           # ⭐ PROVEN PATTERN - Your template
-routers/mentor.py                    # 🔗 Working router - Copy this structure
-```
-
-**📚 REFERENCE FILES (Study First):**
-```
-agents/investor_agent.py             # 💼 UNDERSTAND: investor_node() function signature
-prompts/investor_prompts.yaml        # 💼 UNDERSTAND: investor conversation logic  
-prompts/investor_prompt_loader.py    # 💼 UNDERSTAND: prompt loading functions
-```
-
-**🔧 MODIFICATION FILES:**
-```
-pitchquest_api/main.py              # 🔗 ADD: investor router registration
-pitchquest_api/schemas.py           # 📋 ADD: investor-specific request/response schemas
-```
-
-### **🎯 SESSION 2: Evaluator Service (40 min)**
-
-**📝 FILES TO CREATE:**
-```
-services/evaluator_service.py        # 📊 MAIN TASK - Copy mentor pattern + transcript analysis
-routers/evaluator.py                 # 🔗 API endpoints for evaluation
-```
-
-**📖 TEMPLATE FILES (Copy From):**
-```
-services/mentor_service.py           # ⭐ Base service pattern
-routers/mentor.py                    # 🔗 Base router pattern
-```
-
-**📚 REFERENCE FILES (Study First):**
-```
-agents/evaluator_agent.py            # 📊 UNDERSTAND: evaluator_node() function signature
-models.py                           # 🗄️ REVIEW: evaluations table schema
-crud.py                             # 🗄️ CHECK: evaluation CRUD operations
-```
-
-### **🎯 SESSION 3: Orchestrator Service (40 min)**
-
-**📝 FILES TO CREATE:**
-```
-services/orchestrator_service.py     # 🏗️ MAIN TASK - Complete workflow service
-routers/orchestrator.py              # 🔗 Single workflow endpoint
-```
-
-**📖 TEMPLATE FILES (Study & Replicate):**
-```
-session_orchestrator.py              # ⭐ REPLICATE: Complete LangGraph logic
-services/mentor_service.py           # 🔧 REUSE: Database patterns
-```
-
-**🔧 INTEGRATION FILES:**
-```
-pitchquest_api/main.py              # 🔗 ADD: orchestrator router registration
+# Check database
+python
+>>> from pitchquest_api.database import SessionLocal
+>>> from pitchquest_api import crud
+>>> db = SessionLocal()
+>>> session = crud.get_session(db, "your-session-id")
+>>> print(session.current_phase)
 ```
 
 ---
 
-## 🧩 KEY PATTERNS TO REPLICATE
+## 🎉 You've Got This!
 
-### **🎯 Service Layer Pattern (FROM mentor_service.py):**
-```python
-# 1. Agent Integration Pattern
-from agents.[agent]_agent import [agent]_node, process_single_[agent]_message
+Remember:
+- The hard work is already done (all agents are working)
+- You're just building a smart traffic controller
+- The patterns are all there in the existing services
+- Take it step by step
 
-# 2. State Loading Pattern  
-def _load_session_state(session_id, db):
-    # Get from database
-    # Reconstruct agent state format
-    # Handle field mapping
-
-# 3. State Saving Pattern
-def _save_session_state(session_id, updated_state, new_message, ai_response, db):
-    # Map state to database fields
-    # Create/update session record
-    # Save conversation messages
-
-# 4. Main Processing Pattern
-def process_[agent]_message(session_id, user_message, db):
-    # Load state → Process with agent → Save state → Return response
-```
-
-### **🔗 Router Pattern (FROM routers/mentor.py):**
-```python
-# 1. Import pattern
-from ..services.[agent]_service import [agent]_service
-
-# 2. Endpoint pattern
-@router.post("/message")
-async def process_message(request: MessageRequest, db: Session = Depends(get_db)):
-    # Call service → Return result
-
-# 3. Registration pattern (in main.py)
-from .routers import [agent]
-app.include_router([agent].router, prefix="/api/[agent]", tags=["[agent]"])
-```
+### **Expected Time:**
+- 30 minutes for implementation
+- 10 minutes for testing
+- 5 minutes for celebration! 🎉
 
 ---
 
-## 🔍 CRITICAL UNDERSTANDING POINTS
+## 📞 Next Steps After Orchestrator
 
-### **🤖 Agent Function Signatures (RESEARCH FIRST):**
-
-**❓ Key Questions to Answer:**
-- **Investor:** What does `investor_node(state)` expect? Same state structure as mentor?
-- **Evaluator:** What does `evaluator_node(state)` expect? Needs conversation transcript?
-- **State Compatibility:** Can we use same state loading/saving logic across all agents?
-
-### **🗄️ Database Field Mappings (FROM Cursor Analysis):**
-
-**Field Name Translations:**
-```python
-# session_orchestrator.py    →    Database Schema
-investor_persona             →    selected_investor
-pitch_complete              →    investor_complete  
-student_ready_for_investor  →    (derived from text parsing)
-exchange_count              →    (derived from message count)
-```
-
-### **📋 State Structure Requirements:**
-```python
-# Each agent needs:
-SessionState = {
-    "student_info": {},         # ✅ Working (mapped to individual columns)
-    "messages": [],             # ✅ Working (messages table)
-    "current_phase": "",        # ✅ Working (sessions.current_phase)
-    
-    # Mentor fields
-    "mentor_complete": bool,         # ✅ Working
-    "student_ready_for_investor": bool,  # ✅ Fixed with text parsing
-    
-    # Investor fields (TO IMPLEMENT)
-    "investor_persona": str,         # Map to selected_investor
-    "pitch_complete": bool,          # Map to investor_complete
-    
-    # Evaluator fields (TO IMPLEMENT)  
-    "evaluation_summary": {},        # Map to evaluations table
-    "overall_score": int             # evaluations.overall_score
-}
-```
+Once the orchestrator is working:
+1. **Quick Integration Test:** Run a complete session through the single endpoint
+2. **Consider Frontend:** Simple Streamlit app to visualize the flow
+3. **Polish:** Add any missing error handling
+4. **Document:** Update API documentation
 
 ---
 
-## 🧪 TESTING STRATEGY
+**Good luck! You're one service away from a complete multi-agent educational system!** 🚀
 
-### **🔧 Development Testing Pattern:**
-```bash
-# 1. Test individual service in isolation
-python -c "from services.[agent]_service import test_[agent]_service; test_[agent]_service()"
-
-# 2. Test via FastAPI docs
-# Visit http://localhost:8000/docs → Test endpoints
-
-# 3. Test database persistence  
-python test_postgres.py
-
-# 4. Test complete workflow
-# Use orchestrator endpoint for full mentor → investor → evaluator flow
-```
-
-### **📊 Validation Checklist:**
-- [ ] Agent service processes messages correctly
-- [ ] Database state saves and loads properly
-- [ ] Field mappings work (orchestrator names ↔ database schema)
-- [ ] Agent transitions happen correctly
-- [ ] Educational workflow integrity maintained
-
----
-
-## 🚨 POTENTIAL ISSUES TO WATCH FOR
-
-### **⚠️ Known Challenges:**
-1. **Agent Function Compatibility:** Investor/evaluator might expect different state structure
-2. **Field Name Mismatches:** session_orchestrator.py vs. database schema naming
-3. **State Transitions:** Complex logic for determining when to move between agents
-4. **Persona Selection:** Investor agent needs persona choice logic
-5. **Transcript Analysis:** Evaluator needs complete conversation history
-
-### **🔧 Debug Resources:**
-- **Database Check:** `python test_postgres.py`
-- **Agent Testing:** Test agents individually before web integration
-- **State Inspection:** Add logging to see what state structure agents expect
-- **Message Flow:** Verify conversation messages save/load correctly
-
----
-
-## 📋 SESSION WORKFLOW
-
-### **🎯 Recommended Development Order:**
-
-**1. Research Phase (10 minutes):**
-- Study `agents/investor_agent.py` - understand function signature
-- Review `prompts/investor_prompts.yaml` - understand conversation flow
-- Check existing investor logic in session_orchestrator.py
-
-**2. Investor Service (30 minutes):**
-- Copy `mentor_service.py` → `investor_service.py`
-- Adapt for investor_node() function
-- Handle persona selection and pitch logic
-- Test via FastAPI docs
-
-**3. Evaluator Service (30 minutes):**
-- Copy mentor pattern → `evaluator_service.py`  
-- Adapt for transcript analysis
-- Connect to evaluations database table
-- Test evaluation generation
-
-**4. Orchestrator Service (40 minutes):**
-- Create single workflow service
-- Replicate session_orchestrator.py routing logic
-- Test complete educational flow
-- Validate against local LangGraph behavior
-
-**5. Integration Testing (20 minutes):**
-- Test all endpoints working together
-- Verify database consistency
-- Validate educational workflow preservation
-
----
-
-## 🎯 SUCCESS METRICS
-
-### **🏆 End of Session Goals:**
-- ✅ **3 working agent services** (mentor ✅, investor 🎯, evaluator 🎯)
-- ✅ **1 orchestrator service** for complete workflow
-- ✅ **Hybrid architecture operational** - individual + orchestrated endpoints
-- ✅ **Complete backend API** ready for frontend development
-
-### **💾 Deliverables:**
-- All agent services tested and documented
-- API contract defined for frontend integration
-- Database schema fully utilized
-- Educational workflow logic preserved from research paper design
-
----
-
-## 🚀 MOMENTUM BUILDING
-
-**Today's Win:** ✅ Mentor service validated + critical bug fixed  
-**Tomorrow's Goal:** 🎯 Complete multi-agent web API with proven patterns  
-**This Week's Target:** 🌟 Full backend operational + frontend development started  
-
-**You've built an excellent foundation - next session is about rapid pattern replication!** 🎯
-
----
-
-*Created: August 9, 2025*  
-*For Session: August 10-11, 2025*  
-*Status: Ready for Multi-Agent Service Development*
+*Remember: The orchestrator is just a router. It doesn't do any AI work itself - it just knows where to send messages. Keep it simple!*

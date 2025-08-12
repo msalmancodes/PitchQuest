@@ -114,3 +114,40 @@ class MentorSessionCreate(BaseModel):
     student_hobby: Optional[str] = None
     student_age: Optional[int] = None
     student_location: Optional[str] = None
+
+    # =============================================================================
+# INVESTOR-SPECIFIC SCHEMAS
+# =============================================================================
+
+class InvestorMessageRequest(BaseModel):
+    """Schema for investor conversation requests"""
+    session_id: str
+    message: str = Field(..., min_length=1, max_length=2000)
+
+class InvestorMessageResponse(BaseModel):
+    """Schema for investor conversation responses"""
+    session_id: str
+    response: str
+    phase_complete: bool
+    next_phase: str
+    metadata: Dict[str, Any]
+
+# =============================================================================
+# EVALUATOR-SPECIFIC SCHEMAS
+# =============================================================================
+
+class EvaluationRequest(BaseModel):
+    """Schema for evaluation requests"""
+    session_id: str
+
+class EvaluationResponse(BaseModel):
+    """Schema for evaluation responses"""
+    success: bool
+    session_id: str
+    overall_score: int = 0
+    performance_level: str = ""
+    score_breakdown: Dict[str, str] = {}
+    strengths: List[str] = []
+    improvements: List[str] = []
+    evaluator_complete: bool = False
+    feedback_document_path: Optional[str] = None
