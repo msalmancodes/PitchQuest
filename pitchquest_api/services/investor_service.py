@@ -139,8 +139,8 @@ class InvestorService:
             student_info["location"] = db_session.student_location
         if db_session.business_idea:
             student_info["business_idea"] = db_session.business_idea
-        if db_session.problem_audience:
-            student_info["problem_audience"] = db_session.problem_audience
+        if db_session.target_audience:
+            student_info["target_audience"] = db_session.target_audience
         
         # Load ALL conversation messages using crud
         messages = crud.get_messages_by_session(db, session_id)
@@ -163,7 +163,20 @@ class InvestorService:
         
         # Count exchanges (user messages in investor phase)
         exchange_count = len([m for m in investor_messages if m.get("role") == "user"])
-        
+
+        # compute counts from messages scoped to investor agent
+        msgs = crud.get_messages_by_session(db, session_id)
+
+        # if you tag messages by agent_type, filter to "investor"; otherwise drop the filter
+        investor_msgs = [m for m in msgs if getattr(m, "agent_type", None) == "investor"] or msgs
+        question_count = sum(1 for m in investor_msgs if m.role == "assistant")
+        exchange_count = len(investor_msgs)
+
+        # use computed values
+        #"question_count": question_count
+        # if you track exchange_count in this service’s state, set it too
+        # "exchange_count": exchange_count,
+                
         # Build COMPLETE state with ALL fields preserved
         state = {
             # Core student data
@@ -177,7 +190,7 @@ class InvestorService:
             # PRESERVE mentor fields (critical for state continuity)
             "mentor_complete": db_session.mentor_complete or False,
             "student_ready_for_investor": db_session.student_ready_for_investor or False,
-            "question_count": db_session.question_count or 0,
+            "question_count": question_count,
             
             # Current phase tracking
             "current_phase": db_session.current_phase or "investor"
@@ -243,8 +256,7 @@ class InvestorService:
         if "student_ready_for_investor" in updated_state:
             session_updates["student_ready_for_investor"] = updated_state["student_ready_for_investor"]
         
-        if "question_count" in updated_state:
-            session_updates["question_count"] = updated_state["question_count"]
+      
         
         # Update student info (might be enriched during investor phase)
         student_info = updated_state.get("student_info", {})
@@ -258,8 +270,8 @@ class InvestorService:
                 session_updates["student_location"] = student_info["location"]
             if student_info.get("business_idea"):
                 session_updates["business_idea"] = student_info["business_idea"]
-            if student_info.get("problem_audience"):
-                session_updates["problem_audience"] = student_info["problem_audience"]
+            if student_info.get("target_audience"):
+                session_updates["target_audience"] = student_info["target_audience"]
         
         # Update session using crud
         crud.update_session(db, session_id, session_updates)

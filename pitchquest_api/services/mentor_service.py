@@ -215,30 +215,29 @@ class MentorService:
             session_data = {
                 "id": session_id,
                 "current_phase": "mentor",
-                "mentor_complete": updated_state["mentor_complete"],
-                
-                # Map student_info dict to individual columns
-                "student_name": updated_state["student_info"].get("name"),
-                "student_hobby": updated_state["student_info"].get("hobby"),
-                "student_age": updated_state["student_info"].get("age"),
-                "student_location": updated_state["student_info"].get("location"),
-                "business_idea": updated_state["student_info"].get("business_idea"),
-                "target_audience": updated_state["student_info"].get("target_audience")
+                "mentor_complete": updated_state.get("mentor_complete", False),
+                "student_ready_for_investor": updated_state.get("student_ready_for_investor", False),  # <-- add this
+                "student_name": updated_state.get("student_info", {}).get("name"),
+                "student_hobby": updated_state.get("student_info", {}).get("hobby"),
+                "student_age": updated_state.get("student_info", {}).get("age"),
+                "student_location": updated_state.get("student_info", {}).get("location"),
+                "business_idea": updated_state.get("student_info", {}).get("business_idea"),
+                "target_audience": updated_state.get("student_info", {}).get("target_audience"),
             }
             db_session = crud.create_session(db, session_data)
         else:
             # Update existing session with individual fields
             session_updates = {
-                "mentor_complete": updated_state["mentor_complete"],
-                "student_ready_for_investor": updated_state["student_ready_for_investor", False],
+                "mentor_complete": updated_state.get("mentor_complete", False),
+                "student_ready_for_investor": updated_state.get("student_ready_for_investor", False),  # ← FIXED: .get() not tuple
                 
-                # Map student_info dict to individual columns
-                "student_name": updated_state["student_info"].get("name"),
-                "student_hobby": updated_state["student_info"].get("hobby"), 
-                "student_age": updated_state["student_info"].get("age"),
-                "student_location": updated_state["student_info"].get("location"),
-                "business_idea": updated_state["student_info"].get("business_idea"),
-                "target_audience": updated_state["student_info"].get("target_audience")
+                # Map student_info dict to individual columns  
+                "student_name": updated_state.get("student_info", {}).get("name"),
+                "student_hobby": updated_state.get("student_info", {}).get("hobby"), 
+                "student_age": updated_state.get("student_info", {}).get("age"),
+                "student_location": updated_state.get("student_info", {}).get("location"),
+                "business_idea": updated_state.get("student_info", {}).get("business_idea"),
+                "target_audience": updated_state.get("student_info", {}).get("target_audience"),
             }
             crud.update_session(db, session_id, session_updates)
         
@@ -306,6 +305,8 @@ class MentorService:
             # Override the agent's student_ready with our parsed decision
             if parsed_ready is not None:
                 result['student_ready'] = parsed_ready
+                if 'updated_state' in result and isinstance(result['updated_state'], dict):
+                    result['updated_state']['student_ready_for_investor'] = parsed_ready
                 logger.info(f"Overrode agent readiness with parsed decision: {parsed_ready}")
             
             # Step 4: Save updated state to database
