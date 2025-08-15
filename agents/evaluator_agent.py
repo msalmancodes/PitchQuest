@@ -218,7 +218,10 @@ def evaluator_node(state: EvaluatorState) -> EvaluatorState:
             "score_breakdown": criterion_scores,
             "investor_decision": investor_decision,
             "conversation_length": conversation_length,
-            "feedback_generated": True
+            "feedback_generated": True,
+            "detailed_feedback": comprehensive_feedback,
+            "strengths": [],
+            "improvements": []
         }
         
         # Return updated state

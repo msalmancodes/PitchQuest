@@ -83,7 +83,11 @@ export default function PitchQuestChat() {
         setError(null);
 
         try {
-            const response = await sendMessageToOrchestrator(textToSend, sessionId);
+            const response = await sendMessageToOrchestrator(
+                textToSend,
+                sessionId,
+                selectedInvestor || null
+            );
 
             if (!sessionId && response.session_id) {
                 setSessionId(response.session_id);
@@ -125,17 +129,29 @@ export default function PitchQuestChat() {
 
     // Format message content (basic markdown support)
     const formatMessage = (content: string) => {
+        // Convert headers (your evaluator uses these)
+        content = content.replace(/^# (.*?)$/gm, '<h1 style="color: #5a4a42; margin: 24px 0 16px 0; font-weight: 700; font-size: 20px;">$1</h1>');
+        content = content.replace(/^## (.*?)$/gm, '<h2 style="color: #5a4a42; margin: 20px 0 12px 0; font-weight: 600; font-size: 18px;">$1</h2>');
+        content = content.replace(/^### (.*?)$/gm, '<h3 style="color: #5a4a42; margin: 16px 0 8px 0; font-weight: 600; font-size: 16px;">$1</h3>');
+
         // Convert **bold** to <strong>
-        content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        content = content.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #5a4a42;">$1</strong>');
 
         // Convert *italic* to <em>
         content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
+        // Convert bullet points (your evaluator uses these)
+        content = content.replace(/^- (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">• $1</div>');
+        content = content.replace(/^• (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">• $1</div>');
+
+        // Convert numbered lists
+        content = content.replace(/^\d+\. (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">$&</div>');
+
+        // Convert horizontal rules (separators)
+        content = content.replace(/^---$/gm, '<hr style="margin: 20px 0; border: none; border-top: 1px solid #e0d5cc;">');
+
         // Convert line breaks
         content = content.replace(/\n/g, '<br />');
-
-        // Convert bullet points
-        content = content.replace(/^- (.+)$/gm, '• $1');
 
         return content;
     };

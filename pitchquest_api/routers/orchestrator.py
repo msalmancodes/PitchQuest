@@ -41,6 +41,7 @@ async def process_message(
         result = orchestrator_service.process_message(
             session_id=request.session_id,
             message=request.message,
+            selected_investor=request.selected_investor,  # 🔧 ADD THIS LINE
             db=db
         )
         

@@ -165,6 +165,7 @@ class OrchestratorMessageRequest(BaseModel):
     """
     session_id: Optional[str] = None  # Auto-generated if not provided
     message: str = Field(..., min_length=1, max_length=2000)
+    selected_investor: Optional[str] = None
 
 class OrchestratorInfo(BaseModel):
     """

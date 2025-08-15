@@ -30,7 +30,7 @@ class OrchestratorService:
     based on session state, exactly like your working LangGraph implementation.
     """
     
-    def process_message(self, session_id: Optional[str], message: str, db: Session) -> Dict[str, Any]:
+    def process_message(self, session_id: Optional[str], message: str, selected_investor: Optional[str], db: Session) -> Dict[str, Any]:
         """
         Process message with automatic routing (mirrors LangGraph behavior)
         
@@ -43,6 +43,7 @@ class OrchestratorService:
         Args:
             session_id: Existing session or None for new session
             message: User's message
+            selected_investor: User's investor choice (Aria, Anna, Adam)
             db: Database session
             
         Returns:
@@ -58,6 +59,16 @@ class OrchestratorService:
         
         # Step 2: Load session and determine current phase
         db_session = crud.get_session(db, session_id)
+        
+        # 🔧 FIX: Create session in DB if it doesn't exist
+        if not db_session:
+            crud.create_session(db, {
+                "id": session_id,
+                "current_phase": "mentor"
+            })
+            db_session = crud.get_session(db, session_id)
+            logger.info(f"📝 Created new session in DB: {session_id}")
+        
         current_phase = self._determine_phase(db_session)
         
         logger.info(f"📍 Session {session_id} → Phase: {current_phase}")
@@ -68,10 +79,10 @@ class OrchestratorService:
                 result = self._handle_mentor_phase(session_id, message, db)
                 
             elif current_phase == "investor":
-                result = self._handle_investor_phase(session_id, message, db)
+                result = self._handle_investor_phase(session_id, message, selected_investor, db)
                 
             elif current_phase == "evaluator":
-                result = self._handle_evaluator_phase(session_id, db)  # Auto-trigger
+                result = self._handle_evaluator_phase(session_id, db)
                 
             elif current_phase == "complete":
                 result = self._handle_complete_session(session_id, message)
@@ -182,9 +193,16 @@ class OrchestratorService:
             
             if student_ready:
                 # Successful transition to investor (like LangGraph "to_investor")
+                # 🔧 FIX: Persist transition to DB
+                crud.update_session(db, session_id, {
+                    "current_phase": "investor",
+                    "mentor_complete": True,
+                    "student_ready_for_investor": True
+                })
+                
                 normalized.update({
                     "next_phase": "investor",
-                    "transition_message": "🎯 Excellent! You're ready to pitch. Your next message will connect you with an investor.",
+                    "transition_message": "🎯 Excellent! You're ready to pitch. Please select an investor and send your first message.",
                     "auto_advance": True
                 })
                 logger.info(f"✅ {session_id} → Ready for investor")
@@ -202,14 +220,21 @@ class OrchestratorService:
         
         return normalized
     
-    def _handle_investor_phase(self, session_id: str, message: str, db: Session) -> Dict[str, Any]:
+    def _handle_investor_phase(self, session_id: str, message: str, selected_investor: Optional[str], db: Session) -> Dict[str, Any]:
         """
-        Handle investor phase with auto-evaluation trigger
+        Handle investor phase with TRUE auto-evaluation
         
-        LOGIC: Process pitch → Check completion → Auto-trigger evaluator
+        LOGIC: Process pitch → Check completion → Immediately run evaluation → Return combined response
+        🔧 FIXED: Handles investor selection AND runs evaluation automatically when pitch completes
         """
         
         logger.info(f"💼 Processing investor message for {session_id}")
+        
+        # 🔧 FIX #1: Handle investor selection
+        if selected_investor:
+            logger.info(f"👥 User selected investor: {selected_investor}")
+            # Store selection in session
+            crud.update_session(db, session_id, {"selected_investor": selected_investor})
         
         # Use existing investor service
         investor_result = investor_service.process_investor_message(session_id, message, db)
@@ -230,49 +255,96 @@ class OrchestratorService:
                 "investor_persona": investor_result.get("investor_persona"),
                 "exchange_count": investor_result.get("exchange_count", 0),
                 "persona_selection_needed": investor_result.get("persona_selection_needed", False),
-                "ready_for_pitch": investor_result.get("ready_for_pitch", False)
+                "ready_for_pitch": investor_result.get("ready_for_pitch", False),
+                "selected_investor": selected_investor  # Include selection
             }
         }
         
-        # Check for auto-transition to evaluator (mirror should_continue_investor)
+        # 🔧 FIX #2: TRUE auto-evaluation - run immediately when pitch completes
         if investor_result.get("pitch_complete"):
-            normalized.update({
-                "next_phase": "evaluator",
-                "auto_evaluation_message": "🎉 Excellent pitch! I'm now analyzing your performance and generating detailed feedback...",
-                "auto_advance": True
-            })
-            logger.info(f"✅ {session_id} → Pitch complete, auto-triggering evaluation")
+            logger.info(f"🎉 {session_id} → Pitch complete, running evaluation immediately")
+            
+            try:
+                # Persist investor completion first
+                crud.update_session(db, session_id, {
+                    "investor_complete": True,
+                    "current_phase": "evaluator"
+                })
+                
+                # Run evaluation immediately
+                eval_result = evaluator_service.evaluate_pitch(session_id, db)
+                
+                # Persist evaluation completion
+                crud.update_session(db, session_id, {
+                    "evaluator_complete": True,
+                    "current_phase": "complete"
+                })
+                
+                # 🔧 FIX #3: Use full markdown content instead of arrays
+                evaluation_text = f"""
+
+{eval_result.get('detailed_feedback', 'Evaluation not available')}
+
+---
+
+**Ready for another practice round?** Type anything to start fresh!"""
+                
+                # Return combined investor + evaluation response
+                normalized.update({
+                    "response": investor_result.get("response", "") + evaluation_text,
+                    "current_phase": "complete",  # Skip directly to complete
+                    "phase_complete": True,
+                    "evaluator_complete": True,
+                    "auto_triggered": True,
+                    "evaluation_results": {
+                        "overall_score": eval_result.get("overall_score", 0),
+                        "performance_level": eval_result.get("performance_level", "beginner"),
+                        "strengths": eval_result.get("strengths", []),
+                        "improvements": eval_result.get("improvements", []),
+                        "score_breakdown": eval_result.get("score_breakdown", {}),
+                        "feedback_document_path": eval_result.get("feedback_document_path"),
+                        "detailed_feedback": eval_result.get("detailed_feedback", "")
+                    }
+                })
+                
+                logger.info(f"✅ {session_id} → Auto-evaluation complete, session finished")
+                
+            except Exception as e:
+                logger.error(f"❌ Auto-evaluation failed: {e}")
+                # Fallback to manual evaluation
+                normalized.update({
+                    "next_phase": "evaluator",
+                    "transition_message": "🎉 Excellent pitch! Please type 'evaluate' to see your feedback.",
+                    "auto_advance": False
+                })
         
         return normalized
     
     def _handle_evaluator_phase(self, session_id: str, db: Session) -> Dict[str, Any]:
         """
-        Handle evaluator phase (auto-triggered, no user message needed)
+        Handle evaluator phase (triggered by routing when investor_complete = True)
         
-        LOGIC: Auto-run evaluation → Save results → Mark complete
+        LOGIC: Run evaluation → Save results → Mark complete
+        🔧 FIXED: Uses full markdown content instead of parsing arrays
         """
         
-        logger.info(f"📊 Auto-triggering evaluation for {session_id}")
+        logger.info(f"📊 Running evaluation for {session_id}")
         
-        # Auto-trigger evaluation (no user message needed)
+        # Run evaluation (triggered by routing)
         eval_result = evaluator_service.evaluate_pitch(session_id, db)
         
-        # Format comprehensive response
-        overall_score = eval_result.get('overall_score', 0)
-        performance_level = eval_result.get('performance_level', 'Beginner')
+        # 🔧 FIX: Persist evaluation completion to DB
+        crud.update_session(db, session_id, {
+            "evaluator_complete": True,
+            "current_phase": "complete"
+        })
         
-        response_text = f"""🎉 **Pitch Evaluation Complete!**
+        # 🔧 FIX: Use full markdown content instead of parsing arrays
+        response_text = f"""{eval_result.get('detailed_feedback', 'Evaluation not available')}
 
-📊 **Overall Score:** {overall_score}/100
-📈 **Performance Level:** {performance_level}
+---
 
-🌟 **What You Did Well:**
-{chr(10).join('• ' + str(s) for s in eval_result.get('strengths', []))}
-
-🎯 **Areas for Improvement:**
-{chr(10).join('• ' + str(i) for i in eval_result.get('improvements', []))}
-
-**Ready for another practice round?** Each session helps you improve!"""
+**Ready for another practice round?** Type anything to start fresh!"""
         
         return {
             "session_id": session_id,
@@ -286,14 +358,14 @@ class OrchestratorService:
             "evaluator_complete": True,
             
             "evaluation_results": {
-                "overall_score": overall_score,
-                "performance_level": performance_level,
+                "overall_score": eval_result.get("overall_score", 0),
+                "performance_level": eval_result.get("performance_level", "beginner"),
                 "strengths": eval_result.get("strengths", []),
                 "improvements": eval_result.get("improvements", []),
                 "score_breakdown": eval_result.get("score_breakdown", {}),
-                "feedback_document_path": eval_result.get("feedback_document_path")
+                "feedback_document_path": eval_result.get("feedback_document_path"),
+                "detailed_feedback": eval_result.get("detailed_feedback", "")
             },
-            "auto_triggered": True,
             "success": eval_result.get("success", True)
         }
     
