@@ -4,34 +4,31 @@ import { useState, useRef, useEffect } from 'react';
 import { sendMessageToOrchestrator } from '@/lib/api';
 
 export default function PitchQuestChat() {
-    // Load saved session from localStorage on component mount
-    const [sessionId, setSessionId] = useState<string | null>(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('pitchquest_session_id');
-        }
-        return null;
-    });
-
-    const [messages, setMessages] = useState<Array<{ role: string, content: string }>>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('pitchquest_messages');
-            return saved ? JSON.parse(saved) : [];
-        }
-        return [];
-    });
-
-    const [currentPhase, setCurrentPhase] = useState<'mentor' | 'investor' | 'evaluator'>(() => {
-        if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('pitchquest_phase');
-            return saved ? saved as any : 'mentor';
-        }
-        return 'mentor';
-    });
-
+    // Fix hydration by not checking window during initial render
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const [messages, setMessages] = useState<Array<{ role: string, content: string }>>([]);
+    const [currentPhase, setCurrentPhase] = useState<'mentor' | 'investor' | 'evaluator'>('mentor');
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedInvestor, setSelectedInvestor] = useState<string>('');
+
+    // Load from localStorage AFTER mount (useEffect)
+    useEffect(() => {
+        const savedSessionId = localStorage.getItem('pitchquest_session_id');
+        const savedMessages = localStorage.getItem('pitchquest_messages');
+        const savedPhase = localStorage.getItem('pitchquest_phase');
+
+        if (savedSessionId) setSessionId(savedSessionId);
+        if (savedMessages) setMessages(JSON.parse(savedMessages));
+        if (savedPhase) setCurrentPhase(savedPhase as any);
+
+        // Send initial message if no saved messages
+        if (!savedMessages || JSON.parse(savedMessages).length === 0) {
+            const initialMessage = "Hi, I want to practice my pitch";
+            handleSendMessage(initialMessage, true);
+        }
+    }, []); // Only run once on mount
 
     // Auto-scroll to bottom
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -50,20 +47,14 @@ export default function PitchQuestChat() {
     }, [sessionId]);
 
     useEffect(() => {
-        localStorage.setItem('pitchquest_messages', JSON.stringify(messages));
+        if (messages.length > 0) {
+            localStorage.setItem('pitchquest_messages', JSON.stringify(messages));
+        }
     }, [messages]);
 
     useEffect(() => {
         localStorage.setItem('pitchquest_phase', currentPhase);
     }, [currentPhase]);
-
-    // Send first message only if no existing session
-    useEffect(() => {
-        if (messages.length === 0) {
-            const initialMessage = "Hi, I want to practice my pitch";
-            handleSendMessage(initialMessage, true);
-        }
-    }, []);
 
     const handleSendMessage = async (messageText?: string, isAutomatic = false) => {
         const textToSend = messageText || inputValue.trim();
@@ -130,9 +121,9 @@ export default function PitchQuestChat() {
     // Format message content (basic markdown support)
     const formatMessage = (content: string) => {
         // Convert headers (your evaluator uses these)
-        content = content.replace(/^# (.*?)$/gm, '<h1 style="color: #5a4a42; margin: 24px 0 16px 0; font-weight: 700; font-size: 20px;">$1</h1>');
-        content = content.replace(/^## (.*?)$/gm, '<h2 style="color: #5a4a42; margin: 20px 0 12px 0; font-weight: 600; font-size: 18px;">$1</h2>');
-        content = content.replace(/^### (.*?)$/gm, '<h3 style="color: #5a4a42; margin: 16px 0 8px 0; font-weight: 600; font-size: 16px;">$1</h3>');
+        content = content.replace(/^# (.*?)$/gm, '<h1 style="color: #5a4a42; margin: 24px 0 16px 0; font-weight: 700; font-size: 24px;">$1</h1>');
+        content = content.replace(/^## (.*?)$/gm, '<h2 style="color: #5a4a42; margin: 20px 0 12px 0; font-weight: 600; font-size: 20px;">$1</h2>');
+        content = content.replace(/^### (.*?)$/gm, '<h3 style="color: #5a4a42; margin: 16px 0 8px 0; font-weight: 600; font-size: 18px;">$1</h3>');
 
         // Convert **bold** to <strong>
         content = content.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #5a4a42;">$1</strong>');
@@ -141,11 +132,11 @@ export default function PitchQuestChat() {
         content = content.replace(/\*(.*?)\*/g, '<em>$1</em>');
 
         // Convert bullet points (your evaluator uses these)
-        content = content.replace(/^- (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">• $1</div>');
-        content = content.replace(/^• (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">• $1</div>');
+        content = content.replace(/^- (.*?)$/gm, '<div style="margin: 6px 0; padding-left: 20px;">• $1</div>');
+        content = content.replace(/^• (.*?)$/gm, '<div style="margin: 6px 0; padding-left: 20px;">• $1</div>');
 
         // Convert numbered lists
-        content = content.replace(/^\d+\. (.*?)$/gm, '<div style="margin: 4px 0; padding-left: 16px;">$&</div>');
+        content = content.replace(/^\d+\. (.*?)$/gm, '<div style="margin: 6px 0; padding-left: 20px;">$&</div>');
 
         // Convert horizontal rules (separators)
         content = content.replace(/^---$/gm, '<hr style="margin: 20px 0; border: none; border-top: 1px solid #e0d5cc;">');
@@ -184,30 +175,115 @@ export default function PitchQuestChat() {
                 ::-webkit-scrollbar-thumb:hover {
                     background: #c7785a;
                 }
+                
+                /* Message fade-in animation */
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(10px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+                
+                .message-appear {
+                    animation: fadeIn 0.3s ease-out;
+                }
+                
+                /* Typing dots animation */
+                @keyframes bounce {
+                    0%, 60%, 100% {
+                        transform: translateY(0);
+                    }
+                    30% {
+                        transform: translateY(-10px);
+                    }
+                }
+                
+                .typing-dot {
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background-color: #a08b7c;
+                    margin: 0 2px;
+                    animation: bounce 1.4s infinite;
+                }
+                
+                .typing-dot:nth-child(2) {
+                    animation-delay: 0.2s;
+                }
+                
+                .typing-dot:nth-child(3) {
+                    animation-delay: 0.4s;
+                }
+                
+                /* Pulse animation for investor dropdown */
+                @keyframes pulse {
+                    0% {
+                        box-shadow: 0 0 0 0 rgba(212, 136, 106, 0.4);
+                    }
+                    70% {
+                        box-shadow: 0 0 0 8px rgba(212, 136, 106, 0);
+                    }
+                    100% {
+                        box-shadow: 0 0 0 0 rgba(212, 136, 106, 0);
+                    }
+                }
+                
+                .pulse-animation {
+                    animation: pulse 2s infinite;
+                }
+                
+                /* Custom select styling */
+                select.custom-select {
+                    appearance: none;
+                    -webkit-appearance: none;
+                    -moz-appearance: none;
+                    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b6f5c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+                    background-repeat: no-repeat;
+                    background-position: right 10px center;
+                    background-size: 20px;
+                    padding-right: 40px !important;
+                }
+                
+                select.custom-select:focus {
+                    outline: none;
+                    border-color: #d4886a !important;
+                    box-shadow: 0 0 0 3px rgba(212, 136, 106, 0.1);
+                }
+                
+                select.custom-select option {
+                    background-color: white;
+                    color: #5a4a42;
+                    padding: 8px;
+                }
             `}</style>
 
             <div className="flex flex-col h-screen">
-                {/* Header */}
-                <div style={{ backgroundColor: 'white', borderBottom: '1px solid #f0e8e2' }} className="px-4 sm:px-6 py-4">
-                    <div className="max-w-6xl mx-auto flex justify-between items-center">
+                {/* Header - Smaller */}
+                <div style={{ backgroundColor: 'white', borderBottom: '1px solid #f0e8e2' }} className="px-3 sm:px-4 py-2">
+                    <div className="max-w-7xl mx-auto flex justify-between items-center">
                         {/* Logo */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                             <div style={{
                                 background: 'linear-gradient(135deg, #d4886a, #a08b7c)',
-                                width: '36px',
-                                height: '36px',
+                                width: '32px',
+                                height: '32px',
                                 borderRadius: '8px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 color: 'white',
                                 fontWeight: 'bold',
-                                fontSize: '18px'
+                                fontSize: '16px'
                             }}>
                                 P
                             </div>
                             <span style={{
-                                fontSize: '20px',
+                                fontSize: '18px',
                                 fontWeight: '600',
                                 color: '#5a4a42',
                                 letterSpacing: '-0.5px'
@@ -217,7 +293,7 @@ export default function PitchQuestChat() {
                         </div>
 
                         {/* Progress Indicator */}
-                        <div className="hidden sm:flex items-center gap-6">
+                        <div className="hidden sm:flex items-center gap-4">
                             {[
                                 { name: 'Mentor', key: 'mentor' },
                                 { name: 'Investor', key: 'investor' },
@@ -238,7 +314,7 @@ export default function PitchQuestChat() {
                                             boxShadow: currentPhase === phase.key ? '0 0 0 3px rgba(212, 136, 106, 0.2)' : 'none'
                                         }} />
                                         <span style={{
-                                            fontSize: '14px',
+                                            fontSize: '13px',
                                             fontWeight: currentPhase === phase.key ? '600' : '400',
                                             color: currentPhase === phase.key ? '#5a4a42' : '#a08b7c',
                                             transition: 'all 0.3s'
@@ -247,7 +323,7 @@ export default function PitchQuestChat() {
                                         </span>
                                     </div>
                                     {index < phases.length - 1 && (
-                                        <span style={{ margin: '0 12px', color: '#e0d5cc' }}>→</span>
+                                        <span style={{ margin: '0 8px', color: '#e0d5cc', fontSize: '12px' }}>→</span>
                                     )}
                                 </div>
                             ))}
@@ -257,12 +333,12 @@ export default function PitchQuestChat() {
                         <button
                             onClick={handleNewSession}
                             style={{
-                                padding: '8px 16px',
+                                padding: '6px 14px',
                                 backgroundColor: '#f5e6db',
                                 border: 'none',
                                 borderRadius: '8px',
                                 color: '#8b6f5c',
-                                fontSize: '14px',
+                                fontSize: '13px',
                                 fontWeight: '500',
                                 cursor: 'pointer',
                                 transition: 'all 0.2s'
@@ -276,7 +352,7 @@ export default function PitchQuestChat() {
                 </div>
 
                 {/* Mobile Progress */}
-                <div className="sm:hidden px-4 py-2" style={{ backgroundColor: '#f5f1ed' }}>
+                <div className="sm:hidden px-3 py-1" style={{ backgroundColor: '#f5f1ed' }}>
                     <div className="flex justify-center items-center gap-4">
                         {['mentor', 'investor', 'evaluator'].map((phase) => (
                             <span
@@ -296,8 +372,8 @@ export default function PitchQuestChat() {
 
                 {/* Error display */}
                 {error && (
-                    <div className="px-4 py-2" style={{ backgroundColor: '#fff5f5' }}>
-                        <div className="max-w-6xl mx-auto">
+                    <div className="px-3 py-2" style={{ backgroundColor: '#fff5f5' }}>
+                        <div className="max-w-7xl mx-auto">
                             <div style={{ color: '#c7785a', fontSize: '14px' }}>
                                 {error}
                             </div>
@@ -305,23 +381,23 @@ export default function PitchQuestChat() {
                     </div>
                 )}
 
-                {/* Chat Area - Maximized */}
+                {/* Chat Area - Maximized with larger fonts */}
                 <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#fbf9f7' }}>
-                    <div className="max-w-4xl mx-auto p-4 sm:p-6">
+                    <div className="max-w-5xl mx-auto p-3 sm:p-4">
                         {messages.map((message, index) => (
-                            <div key={index} className={`mb-6 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                            <div key={index} className={`mb-5 flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} message-appear`}>
+                                <div className={`flex gap-3 max-w-[88%] sm:max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                     {/* Avatar */}
                                     <div style={{
-                                        width: '36px',
-                                        height: '36px',
+                                        width: '40px',
+                                        height: '40px',
                                         borderRadius: '50%',
                                         backgroundColor: message.role === 'user' ? '#d4886a' : '#f5e6db',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         flexShrink: 0,
-                                        fontSize: '14px',
+                                        fontSize: '16px',
                                         fontWeight: '600',
                                         color: message.role === 'user' ? 'white' : '#8b6f5c'
                                     }}>
@@ -331,7 +407,7 @@ export default function PitchQuestChat() {
                                     {/* Message */}
                                     <div>
                                         <div style={{
-                                            fontSize: '12px',
+                                            fontSize: '13px',
                                             color: '#8b7568',
                                             marginBottom: '4px',
                                             fontWeight: '500'
@@ -340,13 +416,13 @@ export default function PitchQuestChat() {
                                         </div>
                                         <div
                                             style={{
-                                                padding: '12px 16px',
+                                                padding: '14px 18px',
                                                 borderRadius: '12px',
                                                 backgroundColor: message.role === 'user' ? '#d4886a' : 'white',
                                                 color: message.role === 'user' ? 'white' : '#5a4a42',
                                                 border: message.role === 'user' ? 'none' : '1px solid #f0e8e2',
-                                                fontSize: '15px',
-                                                lineHeight: '1.6',
+                                                fontSize: '16px',
+                                                lineHeight: '1.65',
                                                 letterSpacing: '0.01em'
                                             }}
                                             dangerouslySetInnerHTML={{ __html: formatMessage(message.content) }}
@@ -357,33 +433,35 @@ export default function PitchQuestChat() {
                         ))}
 
                         {isLoading && (
-                            <div className="flex justify-start mb-6">
+                            <div className="flex justify-start mb-5 message-appear">
                                 <div className="flex gap-3">
                                     <div style={{
-                                        width: '36px',
-                                        height: '36px',
+                                        width: '40px',
+                                        height: '40px',
                                         borderRadius: '50%',
                                         backgroundColor: '#f5e6db',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        fontSize: '14px',
+                                        fontSize: '16px',
                                         fontWeight: '600',
                                         color: '#8b6f5c'
                                     }}>
                                         {currentPhase.charAt(0).toUpperCase()}
                                     </div>
                                     <div>
-                                        <div style={{ fontSize: '12px', color: '#8b7568', marginBottom: '4px', fontWeight: '500' }}>
+                                        <div style={{ fontSize: '13px', color: '#8b7568', marginBottom: '4px', fontWeight: '500' }}>
                                             {currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1)}
                                         </div>
                                         <div style={{
-                                            padding: '12px 16px',
+                                            padding: '14px 18px',
                                             backgroundColor: 'white',
                                             border: '1px solid #f0e8e2',
                                             borderRadius: '12px'
                                         }}>
-                                            <span style={{ color: '#a08b7c' }}>Thinking...</span>
+                                            <span className="typing-dot"></span>
+                                            <span className="typing-dot"></span>
+                                            <span className="typing-dot"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -393,13 +471,13 @@ export default function PitchQuestChat() {
                     </div>
                 </div>
 
-                {/* Input Area with Always-Visible Investor Dropdown */}
+                {/* Input Area - Smaller to give more chat space */}
                 <div style={{
                     backgroundColor: 'white',
                     borderTop: '1px solid #f0e8e2',
-                    padding: '20px'
+                    padding: '14px'
                 }}>
-                    <div className="max-w-4xl mx-auto">
+                    <div className="max-w-5xl mx-auto">
                         <div className="flex gap-2 sm:gap-3 items-center">
                             <input
                                 type="text"
@@ -410,10 +488,10 @@ export default function PitchQuestChat() {
                                 disabled={isLoading}
                                 style={{
                                     flex: 1,
-                                    padding: '12px 18px',
-                                    border: '1px solid #e0d5cc',
+                                    padding: '12px 16px',
+                                    border: '2px solid #e0d5cc',
                                     borderRadius: '10px',
-                                    fontSize: '15px',
+                                    fontSize: '16px',
                                     backgroundColor: '#fbf9f7',
                                     color: '#5a4a42',
                                     outline: 'none',
@@ -431,28 +509,30 @@ export default function PitchQuestChat() {
                                 }}
                             />
 
-                            {/* Always-Visible Investor Dropdown */}
+                            {/* Styled Investor Dropdown */}
                             <select
                                 value={selectedInvestor}
                                 onChange={(e) => setSelectedInvestor(e.target.value)}
+                                className={`custom-select ${currentPhase === 'investor' && !selectedInvestor ? 'pulse-animation' : ''}`}
                                 style={{
                                     padding: '12px 14px',
-                                    border: '1px solid #e0d5cc',
+                                    border: '2px solid #e0d5cc',
                                     borderRadius: '10px',
-                                    fontSize: '14px',
-                                    backgroundColor: selectedInvestor ? '#f5e6db' : 'white',
-                                    color: '#5a4a42',
+                                    fontSize: '15px',
+                                    backgroundColor: selectedInvestor ? '#f5e6db' : '#fbf9f7',
+                                    color: selectedInvestor ? '#5a4a42' : '#8b7568',
                                     cursor: 'pointer',
                                     outline: 'none',
                                     fontWeight: selectedInvestor ? '500' : '400',
                                     fontFamily: 'Inter, sans-serif',
-                                    minWidth: '140px'
+                                    minWidth: '140px',
+                                    transition: 'all 0.2s'
                                 }}
                             >
-                                <option value="">Select...</option>
-                                <option value="aria">👩‍💼 Aria</option>
-                                <option value="anna">👩‍💻 Anna</option>
-                                <option value="adam">👨‍💼 Adam</option>
+                                <option value="">Investor...</option>
+                                <option value="aria">🎯 Aria</option>
+                                <option value="anna">🔬 Anna</option>
+                                <option value="adam">🚀 Adam</option>
                                 <option value="random">🎲 Random</option>
                             </select>
 
@@ -460,7 +540,7 @@ export default function PitchQuestChat() {
                                 onClick={() => handleSendMessage()}
                                 disabled={isLoading}
                                 style={{
-                                    padding: '12px 24px',
+                                    padding: '12px 20px',
                                     backgroundColor: isLoading ? '#e0d5cc' : '#d4886a',
                                     color: 'white',
                                     border: 'none',
@@ -490,7 +570,7 @@ export default function PitchQuestChat() {
                         {/* Optional: Show selected investor info */}
                         {selectedInvestor && selectedInvestor !== 'random' && (
                             <div style={{
-                                marginTop: '8px',
+                                marginTop: '6px',
                                 fontSize: '12px',
                                 color: '#8b7568'
                             }}>
