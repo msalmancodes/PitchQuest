@@ -1,23 +1,19 @@
-// Fixed api.ts - Now includes investor selection
 // src/lib/api.ts
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
-
-console.log('API_BASE_URL:', API_BASE_URL); // Add this temporarily to debug
-
 
 export async function sendMessageToOrchestrator(
     message: string,
     sessionId?: string | null,
-    selectedInvestor?: string | null  // 🔧 ADD: investor selection parameter
+    selectedInvestor?: string | null
 ) {
     try {
+        // Fixed: This is an object literal, not a type definition
         const requestBody: any = {
             message: message,
             session_id: sessionId || null,
-            selected_investor?: string | null;
         };
 
-        // 🔧 ADD: Include investor selection if provided
+        // Add investor selection if provided
         if (selectedInvestor) {
             requestBody.selected_investor = selectedInvestor;
         }
