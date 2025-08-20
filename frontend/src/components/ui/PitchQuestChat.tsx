@@ -30,6 +30,8 @@ export default function PitchQuestChat() {
         }
     }, []); // Only run once on mount
 
+    
+
     // Auto-scroll to bottom
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollToBottom = () => {

@@ -14,6 +14,7 @@ export async function sendMessageToOrchestrator(
         const requestBody: any = {
             message: message,
             session_id: sessionId || null,
+            selected_investor?: string | null;
         };
 
         // 🔧 ADD: Include investor selection if provided
