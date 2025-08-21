@@ -1,115 +1,127 @@
-# AgentAcademy 🎓
+# 🚀 PitchQuest
 
-**Educational Multi-Agent Simulation System for Business Pitch Practice**
+[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.4-black.svg)](https://nextjs.org/)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-orange.svg)](https://aws.amazon.com/lambda/)
+[![GPT-5](https://img.shields.io/badge/OpenAI-GPT--5--mini-purple.svg)](https://openai.com/)
+[![Vercel](https://img.shields.io/badge/Vercel-Deployed-black.svg)](https://vercel.com/)
 
-> An AI-powered educational platform inspired by the research paper "AI AGENTS AND EDUCATION: SIMULATED PRACTICE AT SCALE" by Ethan Mollick et al., designed to help students practice business pitches through realistic AI-driven simulations.
+**AI-powered pitch training platform with multi-agent mentoring, practice, and feedback system.**
 
-## 🎯 Project Overview
+## 📖 About
 
-AgentAcademy provides students with a safe, low-stakes environment to practice entrepreneurial pitching skills through AI agents that serve as mentors, investors, and evaluators. Students engage in guided conversations that simulate real-world pitch scenarios, receiving personalized feedback to improve their presentation and business communication skills.
+PitchQuest is an educational simulation platform that helps students practice business pitches through conversational AI agents. Based on research from ["AI Agents and Education: Simulated Practice at Scale"](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4802463) by Mollick et al., it provides personalized mentoring, realistic investor interactions, and comprehensive feedback. The system uses three specialized AI agents orchestrated through LangGraph to create a complete learning experience.
 
-### 🏗️ Multi-Agent Architecture
+## ✨ Features
 
-- **Mentor Agent**: Pre-pitch tutoring and strategic guidance
-- **Investor Agent**: Realistic VC pitch session simulation  
-- **Evaluator Agent**: Post-pitch analysis and personalized feedback
-- **Session Manager**: Workflow orchestration and progress tracking
+- 🤖 **Three Specialized AI Agents** - Mentor, Investor, and Evaluator agents for complete training
+- 💬 **Interactive Chat Interface** - Clean, responsive web UI for natural conversations  
+- 📊 **Session Persistence** - Save progress and continue across sessions
+- 🔄 **Structured Learning Flow** - Guided journey from preparation to practice to feedback
+- ☁️ **Production Deployed** - Serverless backend on AWS Lambda, frontend on Vercel
+- 🎓 **Research-Based Design** - Pedagogically grounded in educational best practices
 
-## 🚀 Current Status
+## 🛠️ Tech Stack
 
-**Phase 1: Foundation (Week 1)** - 🟡 In Progress
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | Next.js 15.4, React, TypeScript | Modern web interface |
+| **Backend** | FastAPI, AWS Lambda, API Gateway | Serverless API |
+| **Database** | Supabase (PostgreSQL) | Session & message storage |
+| **AI/ML** | OpenAI GPT-5-mini, LangGraph | Agent orchestration |
+| **Deployment** | Vercel (Frontend), AWS (Backend) | Cloud hosting |
 
-### ✅ Completed
-- Basic mentor agent implementation with LangGraph
-- 4-question conversation flow (hobby/age/location → business idea → problem/audience → handoff)
-- LangGraph streaming for interactive conversations
-- State management and conversation flow control
-- Graph visualization and debugging capabilities
+## 🚀 Quick Start
 
-### 🔄 In Progress  
-- Intelligent mentor agent with LLM-powered conversations
-- System prompts and conversational AI integration
-- Enhanced user experience and natural dialog
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- OpenAI API key
+- Supabase account (or local PostgreSQL)
 
-### 📋 Upcoming
-- Investor agent implementation
-- Evaluator agent for feedback generation
-- Multi-agent workflow integration
-
-## 🛠️ Technical Stack
-
-- **Framework**: LangGraph (Multi-agent orchestration)
-- **LLM**: OpenAI GPT-4
-- **Backend**: Python 3.10+
-- **State Management**: TypedDict with LangGraph State
-- **Development**: Virtual environment with pip
-
-## 📦 Installation & Setup
+### Local Development
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/agent-academy.git
-cd agent-academy
+# 1. Clone repository
+git clone https://github.com/msalmancodes/PitchQuest.git
+cd PitchQuest
 
-# Create virtual environment
-python -m venv agent_env
-source agent_env/bin/activate  # On Mac/Linux
+# 2. Backend setup
+python -m venv pitchquest_env
+source pitchquest_env/bin/activate  # Windows: pitchquest_env\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env  # Add your API keys
+uvicorn pitchquest_api.main:app --reload
 
-# Install dependencies
-pip install langgraph langchain-openai python-dotenv
+# 3. Frontend setup (new terminal)
+cd frontend
+npm install
+npm run dev
+
+# 4. Open http://localhost:3000
 ```
 
-## 🏃‍♂️ Quick Start
+## 📁 Project Structure
 
-```python
-# Create config.py with your API key
-OPENAI_API_KEY = "your-openai-api-key"
-MODEL_NAME = "gpt-4"
-
-# Run the mentor agent
-python mentor_agent.py
+```
+PitchQuest/
+├── 📄 README.md                    # You are here
+├── 📄 Developer_Onboarding.md      # Complete setup guide
+├── 📄 PROGRESS.md                  # Development timeline
+├── 📄 requirements.txt             # Python dependencies
+├── 📄 config.py                    # Configuration settings
+├── 📂 pitchquest_api/             
+│   ├── main.py                    # FastAPI application
+│   ├── lambda_handler.py          # AWS Lambda handler
+│   └── routers/                   # API endpoints
+├── 📂 agents/                     
+│   ├── mentor_agent.py            # Mentoring logic
+│   ├── investor_agent.py          # Pitch session logic
+│   └── evaluator_agent.py         # Feedback generation
+├── 📂 prompts/                    
+│   └── *.yaml                     # Agent prompt templates
+├── 📂 frontend/                   
+│   ├── src/                       # React components
+│   └── package.json               # Node dependencies
+└── 📂 deployment/                 
+    └── build.sh                   # Lambda build script
 ```
 
-## 📚 Learning Objectives
+### 📚 Key Documentation
 
-This project teaches:
-- **LangGraph Framework**: Multi-agent system development
-- **State Management**: Complex conversation state handling
-- **AI Agent Design**: Educational simulation principles
-- **Production Development**: Software engineering best practices
+- **[Developer Onboarding](./Developer_Onboarding.md)** - Detailed setup, deployment, and API documentation
+- **[Progress & Roadmap](./PROGRESS.md)** - Development history and future plans
+- **[API Documentation](./pitchquest_api/README.md)** - Endpoint specifications
+- **[Agent Architecture](./agents/README.md)** - Multi-agent system design
 
-## 🎓 Educational Foundation
+## 🤝 Contributors
 
-Based on proven pedagogical research from Wharton's Generative AI Lab, implementing the learning loop:
-1. **Direct Instruction** - Foundational knowledge
-2. **Guided Practice** - AI mentor conversations  
-3. **Active Practice** - Realistic pitch simulations
-4. **Feedback** - Personalized improvement guidance
-5. **Reflection** - Knowledge consolidation
+### Development Team
+- **[Salman Bey](https://github.com/msalmancodes)** - Project Lead & Developer
 
-## 📈 Project Phases
+### AI Assistants
+- **[Claude](https://claude.ai)** (Anthropic) - Architecture design, code review, documentation
+- **[ChatGPT](https://chat.openai.com)** (OpenAI) - Initial development, debugging support
 
-- **Phase 1**: Foundation (Mentor Agent) - Week 1
-- **Phase 2**: Multi-Agent Core (All Agents) - Week 2  
-- **Phase 3**: Web Interface (FastAPI + Streamlit) - Week 3
-- **Phase 4**: Production Polish (Deployment Ready) - Week 4
+### Research Foundation
+- **[Mollick et al.](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4802463)** - "AI Agents and Education" research paper
 
-## 🤝 Contributing
+## 🔗 Live Demo
 
-This is a learning project focused on mastering LangGraph and multi-agent systems. See [PROGRESS.md](PROGRESS.md) for detailed development notes and session tracking.
+- **API Endpoint**: `https://am0h8n8b8i.execute-api.us-east-1.amazonaws.com/default/api/health`
+- **Frontend**: [Contact for access]
 
-## 📄 License
+## 📝 License
 
-MIT License - See LICENSE file for details
+MIT License - see [LICENSE](./LICENSE) file for details
 
-## 🔗 References
+## 🙏 Acknowledgments
 
-- [AI Agents and Education Research Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4475995)
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [Educational AI Best Practices](https://www.anthropic.com/research)
+- **Research**: Based on "AI Agents and Education: Simulated Practice at Scale" by Ethan & Lilach Mollick et al.
+- **Technologies**: OpenAI, AWS, Vercel, Supabase, FastAPI, Next.js, LangGraph
+- **Support**: Wharton School's Generative AI Lab for the foundational research
 
 ---
 
-**Current Version**: v0.1.0-alpha  
-**Last Updated**: Julu 2025  
-**Development Status**: Active Learning Project
+*Building the future of education through AI-powered practice* 🎓
