@@ -108,7 +108,7 @@ PitchQuest/
 - **[Mollick et al.](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4802463)** - "AI Agents and Education" research paper
 
 ## 🔗 Live Demo
-- **Web Page**: `https://pitch-quest-sj48.vercel.app/`
+- **Web Page**: (https://pitch-quest-sj48.vercel.app/)
 - **API Endpoint**: `https://am0h8n8b8i.execute-api.us-east-1.amazonaws.com/default/api/health`
 - **Frontend**: [Contact for access]
 
