@@ -92,13 +92,13 @@ PitchQuest/
 
 - **[Developer Onboarding](./Developer_Onboarding.md)** - Detailed setup, deployment, and API documentation
 - **[Progress & Roadmap](./PROGRESS.md)** - Development history and future plans
-- **[API Documentation](./pitchquest_api/README.md)** - Endpoint specifications
+- **[API Documentation](./pitchquest_api)** - Endpoint specifications
 - **[Agent Architecture](./agents/README.md)** - Multi-agent system design
 
 ## 🤝 Contributors
 
 ### Development Team
-- **[Salman Bey](https://github.com/msalmancodes)** - Project Lead & Developer
+- **[Muhammad Salman](https://github.com/msalmancodes)** - Project Lead & Developer
 
 ### AI Assistants
 - **[Claude](https://claude.ai)** (Anthropic) - Architecture design, code review, documentation
@@ -108,7 +108,7 @@ PitchQuest/
 - **[Mollick et al.](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4802463)** - "AI Agents and Education" research paper
 
 ## 🔗 Live Demo
-
+- **Web Page**: `https://pitch-quest-sj48.vercel.app/`
 - **API Endpoint**: `https://am0h8n8b8i.execute-api.us-east-1.amazonaws.com/default/api/health`
 - **Frontend**: [Contact for access]
 
